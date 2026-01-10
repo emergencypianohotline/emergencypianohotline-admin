@@ -470,12 +470,12 @@ async function navigateToView(view, params = {}) {
  * Update URL without reload
  */
 function updateUrl(view, params = {}) {
-  let path = `/admin`;
+  let path = `/`;
   if (view && view !== 'overview') {
-    path = `/admin/${view}`;
+    path = `/${view}`;
   }
   if (params.userId) {
-    path = `/admin/users/${params.userId}`;
+    path = `/users/${params.userId}`;
   }
 
   if (window.location.pathname !== path) {
@@ -490,14 +490,14 @@ function updateUrl(view, params = {}) {
 function parseAdminUrl() {
   const path = window.location.pathname;
 
-  // Match /admin/users/:userId
-  const userDetailMatch = path.match(/^\/admin\/users\/([^\/]+)$/);
+  // Match /users/:userId
+  const userDetailMatch = path.match(/^\/users\/([^\/]+)$/);
   if (userDetailMatch) {
     return { view: 'user-detail', params: { userId: userDetailMatch[1] } };
   }
 
-  // Match /admin/:view
-  const viewMatch = path.match(/^\/admin\/([^\/]+)$/);
+  // Match /:view
+  const viewMatch = path.match(/^\/([^\/]+)$/);
   if (viewMatch) {
     const view = viewMatch[1];
     // Map URL segments to view names
@@ -505,7 +505,7 @@ function parseAdminUrl() {
   }
 
   // Default to overview
-  if (path === '/admin' || path === '/admin/') {
+  if (path === '/' || path === '') {
     return { view: 'overview', params: {} };
   }
 
