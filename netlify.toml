@@ -2,6 +2,10 @@
   publish = "."
   command = "echo 'No build needed - static site'"
 
+[[edge_functions]]
+  path = "/*"
+  function = "admin-auth"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
