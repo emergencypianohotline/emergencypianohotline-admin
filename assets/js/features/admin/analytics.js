@@ -481,7 +481,7 @@ function renderDeviceBar(label, percent, count) {
 }
 
 /**
- * Render the completion matrix (Student × Tutorial grid)
+ * Render the completion matrix (Member × Tutorial grid)
  */
 function renderCompletionMatrix(data) {
   const container = document.getElementById('analytics-matrix');
@@ -557,7 +557,7 @@ function renderCompletionMatrix(data) {
         </table>
       </div>
       <div class="matrix-summary">
-        <span>${users.length} students</span>
+        <span>${users.length} members</span>
         <span>×</span>
         <span>${totalTutorials} tutorials</span>
       </div>

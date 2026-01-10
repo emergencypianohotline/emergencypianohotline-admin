@@ -83,13 +83,13 @@ export async function loadUserDetailData(userId, getAdminApiUrl, getAuthHeaders)
     // Return user data for breadcrumb header
     const firstName = data.user?.firstName || '';
     const lastName = data.user?.lastName || '';
-    const name = `${firstName} ${lastName}`.trim() || 'Student Details';
+    const name = `${firstName} ${lastName}`.trim() || 'Member Details';
     return { name, user: data.user };
 
   } catch (err) {
     debug.error('❌ Failed to load user detail:', err);
     if (headerEl) headerEl.innerHTML = '<div class="admin-error">Failed to load user</div>';
-    return { name: 'Student Details' };
+    return { name: 'Member Details' };
   }
 }
 

@@ -50,7 +50,7 @@ export async function loadTutorialDetail(tutorialId, getAdminApiUrl, getAuthHead
  */
 function renderTutorialDetail(data, navigateToView) {
   const container = document.getElementById('tutorial-detail-container');
-  const { tutorial, stats, watchDistribution, viewers, recentActivity, studentsStuck } = data;
+  const { tutorial, stats, watchDistribution, viewers, recentActivity, studentsStuck: membersStuck } = data;
 
   container.innerHTML = `
     <div class="admin-detail-view">
@@ -142,25 +142,25 @@ function renderTutorialDetail(data, navigateToView) {
         </div>
       </div>
 
-      <!-- Students Stuck (if any) -->
-      ${studentsStuck.length > 0 ? `
+      <!-- Members Stuck (if any) -->
+      ${membersStuck.length > 0 ? `
         <div class="admin-panel alert-panel">
           <div class="admin-panel-header">
-            <h3>⚠️ Students Stuck on This Tutorial</h3>
-            <span class="admin-badge badge-warning">${studentsStuck.length}</span>
+            <h3>⚠️ Members Stuck on This Tutorial</h3>
+            <span class="admin-badge badge-warning">${membersStuck.length}</span>
           </div>
           <div class="admin-list">
-            ${studentsStuck.slice(0, 10).map(student => `
-              <div class="admin-list-item clickable" data-user-id="${student.userId}">
+            ${membersStuck.slice(0, 10).map(member => `
+              <div class="admin-list-item clickable" data-user-id="${member.userId}">
                 <div class="admin-list-content">
-                  <div class="admin-list-title">${student.name}</div>
+                  <div class="admin-list-title">${member.name}</div>
                   <div class="admin-list-meta">
-                    Watched ${student.watchPercent}% • ${student.sessionCount} sessions •
-                    Last watched ${student.daysSinceLastWatch} days ago
+                    Watched ${member.watchPercent}% • ${member.sessionCount} sessions •
+                    Last watched ${member.daysSinceLastWatch} days ago
                   </div>
                 </div>
                 <div class="admin-list-actions">
-                  <span class="admin-badge ${getStatusBadgeClass(student.activityStatus)}">${student.activityStatus}</span>
+                  <span class="admin-badge ${getStatusBadgeClass(member.activityStatus)}">${member.activityStatus}</span>
                 </div>
               </div>
             `).join('')}
@@ -177,7 +177,7 @@ function renderTutorialDetail(data, navigateToView) {
           <table class="admin-table">
             <thead>
               <tr>
-                <th>Student</th>
+                <th>Member</th>
                 <th>Status</th>
                 <th class="admin-cell-center">Sessions</th>
                 <th class="admin-cell-center">Watch %</th>
@@ -231,7 +231,7 @@ function renderTutorialDetail(data, navigateToView) {
     navigateToView('content-stats');
   });
 
-  // Make student names clickable
+  // Make member names clickable
   container.querySelectorAll('[data-user-id]').forEach(el => {
     el.addEventListener('click', () => {
       const userId = el.dataset.userId;

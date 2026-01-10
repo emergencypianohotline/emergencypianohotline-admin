@@ -22,12 +22,12 @@ export function initOverview() {
     });
   }
 
-  // Setup "View All Students" link
-  const viewAllLink = document.querySelector('.admin-link[data-view="users"]');
+  // Setup "View All Members" link
+  const viewAllLink = document.querySelector('.admin-link[data-view="members"]');
   if (viewAllLink) {
     viewAllLink.addEventListener('click', (e) => {
       e.preventDefault();
-      document.querySelector('.admin-nav-link[data-view="users"]')?.click();
+      document.querySelector('.admin-nav-link[data-view="members"]')?.click();
     });
   }
 }
@@ -72,7 +72,7 @@ export async function loadOverviewData(getAdminApiUrl, getAuthHeaders) {
 
   } catch (err) {
     debug.error('❌ Failed to load overview:', err);
-    document.getElementById('stat-total-students').textContent = 'Error';
+    document.getElementById('stat-total-members').textContent = 'Error';
   }
 }
 
@@ -80,7 +80,7 @@ export async function loadOverviewData(getAdminApiUrl, getAuthHeaders) {
  * Render overview stats
  */
 function renderOverview(data) {
-  document.getElementById('stat-total-students').textContent = data.totalUsers || 0;
+  document.getElementById('stat-total-members').textContent = data.totalUsers || 0;
   document.getElementById('stat-active').textContent = data.activeCount || 0;
   document.getElementById('stat-at-risk').textContent = data.atRiskCount || 0;
   document.getElementById('stat-dormant').textContent = data.dormantCount || 0;
@@ -123,7 +123,7 @@ function renderBillingStats(data) {
 }
 
 /**
- * Load at-risk students preview
+ * Load at-risk members preview
  */
 async function loadAtRiskPreview(getAdminApiUrl, getAuthHeaders) {
   try {
@@ -154,7 +154,7 @@ function renderAtRiskPreview(users) {
   if (!container) return;
 
   if (users.length === 0) {
-    container.innerHTML = '<div class="admin-empty">No at-risk students right now</div>';
+    container.innerHTML = '<div class="admin-empty">No at-risk members right now</div>';
     return;
   }
 

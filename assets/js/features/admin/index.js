@@ -284,7 +284,7 @@ function handleBackNavigation() {
       window.open('https://members.emergencypianohotline.com', '_blank');
       break;
     case 'live':
-    case 'users':
+    case 'members':
     case 'content':
     case 'analytics':
     case 'projections':
@@ -293,9 +293,9 @@ function handleBackNavigation() {
       updateUrl('overview');
       break;
     case 'user-detail':
-      // Go back to students list
-      navigateToView('users');
-      updateUrl('users');
+      // Go back to members list
+      navigateToView('members');
+      updateUrl('members');
       break;
     default:
       closeAdminDashboard();
@@ -310,7 +310,7 @@ function updateHeader(view, userName = '') {
   const backBtn = document.getElementById('admin-back-btn');
   const nav = document.querySelector('.admin-nav');
   const livePill = nav?.querySelector('[data-view="live"]');
-  const studentsPill = nav?.querySelector('[data-view="users"]');
+  const membersPill = nav?.querySelector('[data-view="members"]');
   const tutorialsPill = nav?.querySelector('[data-view="content"]');
   const analyticsPill = nav?.querySelector('[data-view="analytics"]');
   const projectionsPill = nav?.querySelector('[data-view="projections"]');
@@ -319,7 +319,7 @@ function updateHeader(view, userName = '') {
 
   // Reset all pills visibility
   if (livePill) livePill.style.display = '';
-  if (studentsPill) studentsPill.style.display = '';
+  if (membersPill) membersPill.style.display = '';
   if (tutorialsPill) tutorialsPill.style.display = '';
   if (analyticsPill) analyticsPill.style.display = '';
   if (projectionsPill) projectionsPill.style.display = '';
@@ -336,11 +336,11 @@ function updateHeader(view, userName = '') {
       if (nav) nav.style.display = 'flex';
       if (livePill) livePill.style.display = 'none'; // Hide Live pill on Live page
       break;
-    case 'users':
-      titleEl.textContent = 'Students';
+    case 'members':
+      titleEl.textContent = 'Members';
       backBtn.textContent = 'ADMIN';
       if (nav) nav.style.display = 'flex';
-      if (studentsPill) studentsPill.style.display = 'none'; // Hide Students pill on Students page
+      if (membersPill) membersPill.style.display = 'none'; // Hide Members pill on Members page
       break;
     case 'content':
       titleEl.textContent = 'Tutorials';
@@ -361,8 +361,8 @@ function updateHeader(view, userName = '') {
       if (projectionsPill) projectionsPill.style.display = 'none'; // Hide Projections pill on Projections page
       break;
     case 'user-detail':
-      titleEl.textContent = userName || 'Student Details';
-      backBtn.textContent = 'STUDENTS';
+      titleEl.textContent = userName || 'Member Details';
+      backBtn.textContent = 'MEMBERS';
       if (nav) nav.style.display = 'none'; // Hide nav pills on user detail
       break;
   }
@@ -409,25 +409,25 @@ async function navigateToView(view, params = {}) {
       debug.log('📡 Starting live stats...');
       await startLiveStats(getAdminApiUrl, getAuthHeaders);
       break;
-    case 'users':
+    case 'members':
       if (params.userId) {
         // Load user detail - get user name for header
         const userData = await loadUserDetailData(params.userId, getAdminApiUrl, getAuthHeaders);
-        currentUserName = userData?.name || 'Student Details';
+        currentUserName = userData?.name || 'Member Details';
         currentView = 'user-detail';
         updateHeader('user-detail', currentUserName);
-        updateUrl('users', { userId: params.userId });
-        document.getElementById('admin-users')?.classList.remove('active');
+        updateUrl('members', { userId: params.userId });
+        document.getElementById('admin-members')?.classList.remove('active');
         document.getElementById('admin-user-detail')?.classList.add('active');
       } else {
-        updateHeader('users');
+        updateHeader('members');
         await loadUserListData(getAdminApiUrl, getAuthHeaders);
       }
       break;
     case 'user-detail':
       if (params.userId) {
         const userData = await loadUserDetailData(params.userId, getAdminApiUrl, getAuthHeaders);
-        currentUserName = userData?.name || 'Student Details';
+        currentUserName = userData?.name || 'Member Details';
         updateHeader('user-detail', currentUserName);
         updateUrl('users', { userId: params.userId });
       }
@@ -475,7 +475,7 @@ function updateUrl(view, params = {}) {
     path = `/${view}`;
   }
   if (params.userId) {
-    path = `/users/${params.userId}`;
+    path = `/members/${params.userId}`;
   }
 
   if (window.location.pathname !== path) {
@@ -490,8 +490,8 @@ function updateUrl(view, params = {}) {
 function parseAdminUrl() {
   const path = window.location.pathname;
 
-  // Match /users/:userId
-  const userDetailMatch = path.match(/^\/users\/([^\/]+)$/);
+  // Match /members/:userId
+  const userDetailMatch = path.match(/^\/members\/([^\/]+)$/);
   if (userDetailMatch) {
     return { view: 'user-detail', params: { userId: userDetailMatch[1] } };
   }

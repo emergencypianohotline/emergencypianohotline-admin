@@ -172,7 +172,7 @@ function renderUsers(users) {
   if (!tbody) return;
 
   if (users.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="admin-empty">No students found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="admin-empty">No members found</td></tr>';
     return;
   }
 
@@ -242,7 +242,7 @@ function exportUsersCSV() {
     (user.riskFactors || []).join('; '),
   ]);
 
-  exportToCSV('students', headers, rows);
+  exportToCSV('members', headers, rows);
 }
 
 /**

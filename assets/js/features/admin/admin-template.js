@@ -16,7 +16,7 @@ export function getAdminTemplate() {
         <h1 class="admin-title" id="admin-page-title">Admin</h1>
         <nav class="admin-nav">
           <a href="#" class="admin-nav-link" data-view="live">Live</a>
-          <a href="#" class="admin-nav-link" data-view="users">Students</a>
+          <a href="#" class="admin-nav-link" data-view="members">Members</a>
           <a href="#" class="admin-nav-link" data-view="content">Tutorials</a>
           <a href="#" class="admin-nav-link" data-view="analytics">Analytics</a>
           <a href="#" class="admin-nav-link" data-view="projections">Projections</a>
@@ -37,8 +37,8 @@ export function getAdminTemplate() {
           <!-- Stats Cards -->
           <div class="admin-stats-grid">
             <div class="admin-stat-card">
-              <div class="admin-stat-value" id="stat-total-students">-</div>
-              <div class="admin-stat-label">Total Students</div>
+              <div class="admin-stat-value" id="stat-total-members">-</div>
+              <div class="admin-stat-label">Total Members</div>
             </div>
             <div class="admin-stat-card active">
               <div class="admin-stat-value" id="stat-active">-</div>
@@ -114,11 +114,11 @@ export function getAdminTemplate() {
             </div>
           </div>
 
-          <!-- At Risk Students Preview -->
+          <!-- At Risk Members Preview -->
           <div class="admin-panel">
             <div class="admin-panel-header">
               <h3>Needs Attention</h3>
-              <a href="#" class="admin-link" data-view="users">View All Students</a>
+              <a href="#" class="admin-link" data-view="members">View All Members</a>
             </div>
             <div id="at-risk-preview" class="admin-list">
               <div class="admin-loading">Loading...</div>
@@ -203,10 +203,10 @@ export function getAdminTemplate() {
           </div>
         </section>
 
-        <!-- Users Section -->
-        <section id="admin-users" class="admin-section">
+        <!-- Members Section -->
+        <section id="admin-members" class="admin-section">
           <div class="admin-section-header">
-            <h2>Students</h2>
+            <h2>Members</h2>
             <div class="admin-actions">
               <input type="text" id="user-search" class="admin-search" placeholder="Search by name or email...">
               <select id="user-filter-status" class="admin-select">
@@ -437,7 +437,7 @@ export function getAdminTemplate() {
           <!-- Completion Matrix -->
           <div class="admin-panel completion-matrix-panel">
             <div class="admin-panel-header">
-              <h3>Student × Tutorial Matrix</h3>
+              <h3>Member × Tutorial Matrix</h3>
               <div class="matrix-legend">
                 <span class="legend-item"><span class="legend-box not-started"></span> Not Started</span>
                 <span class="legend-item"><span class="legend-box in-progress"></span> In Progress</span>
