@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - Emergency Piano Hotline</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="https://members.emergencypianohotline.com/favicon.ico">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Gopher Font (same as main site) -->
+  <style>
+    @font-face {
+      font-family: 'Gopher';
+      src: url('https://members.emergencypianohotline.com/assets/fonts/Gopher-Regular.woff2') format('woff2');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Gopher';
+      src: url('https://members.emergencypianohotline.com/assets/fonts/Gopher-Bold.woff2') format('woff2');
+      font-weight: 700;
+      font-style: normal;
+      font-display: swap;
+    }
+  </style>
+
+  <!-- Admin CSS -->
+  <link rel="stylesheet" href="/assets/css/admin.css">
+
+  <!-- Base Styles -->
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #000;
+      color: #FFE974;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Loading Screen */
+    .admin-loading-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .admin-loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 3px solid rgba(255, 233, 116, 0.2);
+      border-top-color: #FFE974;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .admin-loading-text {
+      margin-top: 1rem;
+      color: #FFE974;
+      font-family: 'Gopher', sans-serif;
+      font-size: 1.2rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* Error Screen */
+    .admin-error-screen {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #000;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .admin-error-screen h1 {
+      color: #f87171;
+      font-family: 'Gopher', sans-serif;
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    .admin-error-screen p {
+      color: #FFE974;
+      font-size: 1.1rem;
+      margin-bottom: 2rem;
+      max-width: 500px;
+    }
+
+    .admin-error-screen button {
+      background: #FFE974;
+      color: #000;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      font-family: 'Gopher', sans-serif;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    .admin-error-screen button:hover {
+      background: #ffd93d;
+    }
+
+    /* Admin Container */
+    #admin-container {
+      display: none;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #admin-container.ready {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div class="admin-loading-screen" id="loading-screen">
+    <div class="admin-loading-spinner"></div>
+    <div class="admin-loading-text">Loading Admin Dashboard</div>
+  </div>
+
+  <!-- Error Screen -->
+  <div class="admin-error-screen" id="error-screen">
+    <h1>Access Denied</h1>
+    <p id="error-message">You must be logged in as an admin to access this dashboard.</p>
+    <button onclick="window.location.href='https://members.emergencypianohotline.com'">
+      Go to Main Site
+    </button>
+  </div>
+
+  <!-- Admin Container (populated by JavaScript) -->
+  <div id="admin-container"></div>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Admin Dashboard -->
+  <script type="module">
+    import { loadAdminDashboard, verifyAdminAccess } from './assets/js/features/admin/index.js';
+
+    // Initialize
+    (async () => {
+      try {
+        console.log('🔐 Verifying admin access...');
+
+        // Verify admin access
+        const isAdmin = await verifyAdminAccess();
+
+        if (!isAdmin) {
+          // Not admin - show error
+          document.getElementById('loading-screen').style.display = 'none';
+          document.getElementById('error-screen').style.display = 'flex';
+          return;
+        }
+
+        console.log('✅ Admin verified, loading dashboard...');
+
+        // Load admin dashboard
+        await loadAdminDashboard('overview');
+
+        // Hide loading, show admin
+        document.getElementById('loading-screen').style.display = 'none';
+        document.getElementById('admin-container').classList.add('ready');
+
+        console.log('✅ Admin dashboard loaded');
+
+      } catch (error) {
+        console.error('❌ Admin initialization failed:', error);
+
+        // Show error screen
+        document.getElementById('loading-screen').style.display = 'none';
+        const errorScreen = document.getElementById('error-screen');
+        errorScreen.style.display = 'flex';
+        document.getElementById('error-message').textContent =
+          error.message || 'Failed to load admin dashboard. Please try again.';
+      }
+    })();
+  </script>
+</body>
+</html>
