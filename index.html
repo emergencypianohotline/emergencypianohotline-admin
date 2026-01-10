@@ -349,10 +349,105 @@
       }
     });
 
+    // Check if this is a password recovery callback
+    async function checkPasswordRecovery() {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const type = hashParams.get('type');
+
+      if (type === 'recovery') {
+        // Show password update form
+        const errorScreen = document.getElementById('error-screen');
+        const errorMessage = document.getElementById('error-message');
+        const loginForm = document.getElementById('login-form');
+        const forgotPasswordLink = document.querySelector('.admin-forgot-password');
+
+        errorMessage.textContent = 'Set your new password';
+        loginForm.innerHTML = `
+          <input
+            type="password"
+            id="new-password"
+            class="admin-login-input"
+            placeholder="New password"
+            required
+            autocomplete="new-password"
+          >
+          <input
+            type="password"
+            id="confirm-password"
+            class="admin-login-input"
+            placeholder="Confirm password"
+            required
+            autocomplete="new-password"
+          >
+          <button type="submit" class="admin-login-button" id="update-password-button">
+            Update Password
+          </button>
+          <div id="login-error" class="admin-login-error"></div>
+          <div id="login-success" class="admin-success-message"></div>
+        `;
+
+        if (forgotPasswordLink) forgotPasswordLink.style.display = 'none';
+
+        loginForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+
+          const newPassword = document.getElementById('new-password').value;
+          const confirmPassword = document.getElementById('confirm-password').value;
+          const updateButton = document.getElementById('update-password-button');
+          const loginError = document.getElementById('login-error');
+          const loginSuccess = document.getElementById('login-success');
+
+          if (newPassword !== confirmPassword) {
+            loginError.textContent = 'Passwords do not match';
+            return;
+          }
+
+          if (newPassword.length < 6) {
+            loginError.textContent = 'Password must be at least 6 characters';
+            return;
+          }
+
+          updateButton.disabled = true;
+          updateButton.textContent = 'Updating...';
+          loginError.textContent = '';
+          loginSuccess.textContent = '';
+
+          try {
+            const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+            if (error) throw error;
+
+            loginSuccess.textContent = 'Password updated! Redirecting...';
+
+            // Clear hash and redirect to admin
+            window.location.hash = '';
+            setTimeout(() => window.location.reload(), 1500);
+
+          } catch (error) {
+            console.error('Password update error:', error);
+            loginError.textContent = error.message || 'Failed to update password.';
+            updateButton.disabled = false;
+            updateButton.textContent = 'Update Password';
+          }
+        });
+
+        document.getElementById('loading-screen').style.display = 'none';
+        errorScreen.style.display = 'flex';
+        return true;
+      }
+
+      return false;
+    }
+
     // Initialize
     (async () => {
       try {
         console.log('🔐 Verifying admin access...');
+
+        // Check if this is a password recovery callback
+        if (await checkPasswordRecovery()) {
+          return;
+        }
 
         // Verify admin access
         const isAdmin = await verifyAdminAccess();
