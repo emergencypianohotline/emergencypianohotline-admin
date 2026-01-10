@@ -252,6 +252,10 @@
     // Initialize Supabase client with explicit config
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // Store client instance globally for admin module to use
+    if (!window.HOTLINE) window.HOTLINE = {};
+    window.HOTLINE.supabase = supabase;
+
     // Handle login form submission
     document.getElementById('login-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
