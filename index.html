@@ -209,28 +209,6 @@
       text-align: center;
     }
 
-    .admin-signout-button {
-      position: fixed;
-      top: 1rem;
-      right: 1rem;
-      background: rgba(255, 233, 116, 0.1);
-      color: #FFE974;
-      border: 1px solid rgba(255, 233, 116, 0.3);
-      padding: 0.5rem 1rem;
-      font-family: 'Gopher', sans-serif;
-      font-size: 0.9rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      cursor: pointer;
-      border-radius: 4px;
-      z-index: 10000;
-    }
-
-    .admin-signout-button:hover {
-      background: rgba(255, 233, 116, 0.2);
-      border-color: #FFE974;
-    }
-
     /* Admin Container */
     #admin-container {
       display: none;
@@ -371,25 +349,6 @@
       }
     });
 
-    // Add sign-out button
-    function addSignOutButton() {
-      if (document.getElementById('admin-signout-btn')) return;
-
-      const signOutBtn = document.createElement('button');
-      signOutBtn.id = 'admin-signout-btn';
-      signOutBtn.className = 'admin-signout-button';
-      signOutBtn.textContent = 'Sign Out';
-      signOutBtn.addEventListener('click', async () => {
-        try {
-          await supabase.auth.signOut();
-          window.location.reload();
-        } catch (error) {
-          console.error('Sign out error:', error);
-        }
-      });
-      document.body.appendChild(signOutBtn);
-    }
-
     // Initialize
     (async () => {
       try {
@@ -413,9 +372,6 @@
         // Hide loading, show admin
         document.getElementById('loading-screen').style.display = 'none';
         document.getElementById('admin-container').classList.add('ready');
-
-        // Add sign-out button
-        addSignOutButton();
 
         console.log('✅ Admin dashboard loaded');
 
