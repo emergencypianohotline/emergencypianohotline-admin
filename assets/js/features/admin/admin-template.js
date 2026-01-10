@@ -20,6 +20,7 @@ export function getAdminTemplate() {
           <a href="#" class="admin-nav-link" data-view="content">Tutorials</a>
           <a href="#" class="admin-nav-link" data-view="analytics">Analytics</a>
           <a href="#" class="admin-nav-link" data-view="projections">Projections</a>
+          <button class="admin-nav-link admin-signout-link" id="admin-signout-btn">Sign Out</button>
         </nav>
       </header>
 

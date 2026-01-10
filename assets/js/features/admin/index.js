@@ -216,6 +216,22 @@ function injectAdminUI() {
     });
   }
 
+  // Setup sign-out button
+  const signOutBtn = container.querySelector('#admin-signout-btn');
+  if (signOutBtn) {
+    signOutBtn.addEventListener('click', async () => {
+      try {
+        const supabase = window.HOTLINE?.supabase;
+        if (supabase) {
+          await supabase.auth.signOut();
+        }
+        window.location.href = '/';
+      } catch (error) {
+        debug.error('Sign out error:', error);
+      }
+    });
+  }
+
   debug.log('✅ Admin UI injected');
 }
 
@@ -264,8 +280,8 @@ function setupNavigation() {
 function handleBackNavigation() {
   switch (currentView) {
     case 'overview':
-      // At root - close admin and go to main dashboard
-      closeAdminDashboard();
+      // At root - open members site in new window
+      window.open('https://members.emergencypianohotline.com', '_blank');
       break;
     case 'live':
     case 'users':
@@ -595,9 +611,9 @@ function injectAdminPillButton() {
   // Create admin pill button
   const adminPill = document.createElement('a');
   adminPill.id = 'admin-pill-button';
-  adminPill.href = '/admin';
+  adminPill.href = 'https://admin.emergencypianohotline.com';
   adminPill.className = 'dashboard-link-pill';
-  adminPill.setAttribute('data-hotline-nav', '');
+  adminPill.target = '_blank'; // Open in new tab
   adminPill.textContent = 'ADMIN';
 
   // Insert before the first link (Resources)
