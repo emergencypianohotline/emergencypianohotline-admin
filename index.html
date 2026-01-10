@@ -185,6 +185,52 @@
       margin-top: 0.5rem;
     }
 
+    .admin-forgot-password {
+      text-align: center;
+      margin-top: 0.5rem;
+    }
+
+    .admin-forgot-password-link {
+      color: rgba(255, 233, 116, 0.7);
+      text-decoration: none;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .admin-forgot-password-link:hover {
+      color: #FFE974;
+      text-decoration: underline;
+    }
+
+    .admin-success-message {
+      color: #4ade80;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+      text-align: center;
+    }
+
+    .admin-signout-button {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      background: rgba(255, 233, 116, 0.1);
+      color: #FFE974;
+      border: 1px solid rgba(255, 233, 116, 0.3);
+      padding: 0.5rem 1rem;
+      font-family: 'Gopher', sans-serif;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      border-radius: 4px;
+      z-index: 10000;
+    }
+
+    .admin-signout-button:hover {
+      background: rgba(255, 233, 116, 0.2);
+      border-color: #FFE974;
+    }
+
     /* Admin Container */
     #admin-container {
       display: none;
@@ -231,7 +277,12 @@
         Log In
       </button>
       <div id="login-error" class="admin-login-error"></div>
+      <div id="login-success" class="admin-success-message"></div>
     </form>
+
+    <div class="admin-forgot-password">
+      <a class="admin-forgot-password-link" id="forgot-password-link">Forgot password?</a>
+    </div>
 
     <button onclick="window.location.href='https://members.emergencypianohotline.com'">
       Go to Main Site
@@ -264,10 +315,12 @@
       const password = document.getElementById('login-password').value;
       const loginButton = document.getElementById('login-button');
       const loginError = document.getElementById('login-error');
+      const loginSuccess = document.getElementById('login-success');
 
       loginButton.disabled = true;
       loginButton.textContent = 'Logging in...';
       loginError.textContent = '';
+      loginSuccess.textContent = '';
 
       try {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -287,6 +340,55 @@
         loginButton.textContent = 'Log In';
       }
     });
+
+    // Handle forgot password
+    document.getElementById('forgot-password-link')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById('login-email').value;
+      const loginError = document.getElementById('login-error');
+      const loginSuccess = document.getElementById('login-success');
+
+      if (!email) {
+        loginError.textContent = 'Please enter your email address first.';
+        return;
+      }
+
+      loginError.textContent = '';
+      loginSuccess.textContent = '';
+
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin,
+        });
+
+        if (error) throw error;
+
+        loginSuccess.textContent = 'Password reset email sent! Check your inbox.';
+      } catch (error) {
+        console.error('Password reset error:', error);
+        loginError.textContent = error.message || 'Failed to send password reset email.';
+      }
+    });
+
+    // Add sign-out button
+    function addSignOutButton() {
+      if (document.getElementById('admin-signout-btn')) return;
+
+      const signOutBtn = document.createElement('button');
+      signOutBtn.id = 'admin-signout-btn';
+      signOutBtn.className = 'admin-signout-button';
+      signOutBtn.textContent = 'Sign Out';
+      signOutBtn.addEventListener('click', async () => {
+        try {
+          await supabase.auth.signOut();
+          window.location.reload();
+        } catch (error) {
+          console.error('Sign out error:', error);
+        }
+      });
+      document.body.appendChild(signOutBtn);
+    }
 
     // Initialize
     (async () => {
@@ -311,6 +413,9 @@
         // Hide loading, show admin
         document.getElementById('loading-screen').style.display = 'none';
         document.getElementById('admin-container').classList.add('ready');
+
+        // Add sign-out button
+        addSignOutButton();
 
         console.log('✅ Admin dashboard loaded');
 
