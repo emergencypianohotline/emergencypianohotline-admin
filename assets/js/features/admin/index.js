@@ -121,6 +121,38 @@ export async function verifyAdminAccess() {
 }
 
 /**
+ * Preload all admin data in parallel for faster navigation
+ */
+async function preloadAllData() {
+  debug.log('🚀 Preloading all admin data...');
+
+  try {
+    // Load all data in parallel
+    await Promise.all([
+      loadOverviewData(getAdminApiUrl, getAuthHeaders).catch(err => {
+        debug.warn('⚠️ Failed to preload overview:', err);
+      }),
+      loadUserListData(getAdminApiUrl, getAuthHeaders).catch(err => {
+        debug.warn('⚠️ Failed to preload users:', err);
+      }),
+      loadContentStatsData(getAdminApiUrl, getAuthHeaders).catch(err => {
+        debug.warn('⚠️ Failed to preload content:', err);
+      }),
+      loadAnalyticsData(getAdminApiUrl, getAuthHeaders).catch(err => {
+        debug.warn('⚠️ Failed to preload analytics:', err);
+      }),
+      loadProjectionsData(getAdminApiUrl, getAuthHeaders).catch(err => {
+        debug.warn('⚠️ Failed to preload projections:', err);
+      }),
+    ]);
+
+    debug.log('✅ All admin data preloaded');
+  } catch (err) {
+    debug.error('❌ Error during data preload:', err);
+  }
+}
+
+/**
  * Load admin dashboard
  * Called when navigating to /admin routes
  */
@@ -139,6 +171,9 @@ export async function loadAdminDashboard(view = 'overview', params = {}) {
   if (!isAdminLoaded) {
     injectAdminUI();
     isAdminLoaded = true;
+
+    // Preload all data in the background after UI is ready
+    preloadAllData();
   }
 
   // Show admin overlay
@@ -396,12 +431,12 @@ async function navigateToView(view, params = {}) {
     stopLiveStats();
   }
 
-  // Load data for the view
+  // Load data for the view (uses cache if available)
   switch (view) {
     case 'overview':
       updateHeader('overview');
       debug.log('📊 Loading overview data...');
-      await loadOverviewData(getAdminApiUrl, getAuthHeaders);
+      await loadOverviewData(getAdminApiUrl, getAuthHeaders, false); // Don't force refresh
       debug.log('📊 Overview data loaded');
       break;
     case 'live':
@@ -412,7 +447,13 @@ async function navigateToView(view, params = {}) {
     case 'members':
       if (params.userId) {
         // Load user detail - get user name for header
-        const userData = await loadUserDetailData(params.userId, getAdminApiUrl, getAuthHeaders);
+        // Pass preloadUser if available for instant display
+        const userData = await loadUserDetailData(
+          params.userId,
+          getAdminApiUrl,
+          getAuthHeaders,
+          params.preloadUser
+        );
         currentUserName = userData?.name || 'Member Details';
         currentView = 'user-detail';
         updateHeader('user-detail', currentUserName);
@@ -421,12 +462,17 @@ async function navigateToView(view, params = {}) {
         document.getElementById('admin-user-detail')?.classList.add('active');
       } else {
         updateHeader('members');
-        await loadUserListData(getAdminApiUrl, getAuthHeaders);
+        await loadUserListData(getAdminApiUrl, getAuthHeaders, false); // Don't force refresh
       }
       break;
     case 'user-detail':
       if (params.userId) {
-        const userData = await loadUserDetailData(params.userId, getAdminApiUrl, getAuthHeaders);
+        const userData = await loadUserDetailData(
+          params.userId,
+          getAdminApiUrl,
+          getAuthHeaders,
+          params.preloadUser
+        );
         currentUserName = userData?.name || 'Member Details';
         updateHeader('user-detail', currentUserName);
         updateUrl('users', { userId: params.userId });
@@ -434,13 +480,13 @@ async function navigateToView(view, params = {}) {
       break;
     case 'content':
       updateHeader('content');
-      await loadContentStatsData(getAdminApiUrl, getAuthHeaders);
+      await loadContentStatsData(getAdminApiUrl, getAuthHeaders, false); // Don't force refresh
       break;
     case 'content-stats':
       // Alias for content
       currentView = 'content';
       updateHeader('content');
-      await loadContentStatsData(getAdminApiUrl, getAuthHeaders);
+      await loadContentStatsData(getAdminApiUrl, getAuthHeaders, false); // Don't force refresh
       document.getElementById('admin-content')?.classList.add('active');
       break;
     case 'tutorial-detail':
@@ -457,11 +503,11 @@ async function navigateToView(view, params = {}) {
       break;
     case 'analytics':
       updateHeader('analytics');
-      await loadAnalyticsData(getAdminApiUrl, getAuthHeaders);
+      await loadAnalyticsData(getAdminApiUrl, getAuthHeaders, false); // Don't force refresh
       break;
     case 'projections':
       updateHeader('projections');
-      await loadProjectionsData(getAdminApiUrl, getAuthHeaders);
+      await loadProjectionsData(getAdminApiUrl, getAuthHeaders, false); // Don't force refresh
       break;
   }
 }

@@ -203,10 +203,10 @@ function renderUsers(users) {
   tbody.querySelectorAll('.admin-table-row').forEach(row => {
     row.addEventListener('click', () => {
       const userId = row.dataset.userId;
-      if (userId) {
-        import('./index.js').then(mod => {
-          mod.loadAdminDashboard('users', { userId });
-        });
+      if (userId && window.HOTLINE?.admin?.navigateToView) {
+        // Find the user data to pass along for instant display
+        const user = users.find(u => u.id === userId);
+        window.HOTLINE.admin.navigateToView('members', { userId, preloadUser: user });
       }
     });
   });

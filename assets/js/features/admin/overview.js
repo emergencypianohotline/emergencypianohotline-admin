@@ -17,7 +17,7 @@ export function initOverview() {
       const getAdminApiUrl = window._adminApiUrl;
       const getAuthHeaders = window._adminAuthHeaders;
       if (getAdminApiUrl && getAuthHeaders) {
-        await loadOverviewData(getAdminApiUrl, getAuthHeaders);
+        await loadOverviewData(getAdminApiUrl, getAuthHeaders, true); // Force refresh
       }
     });
   }
@@ -35,10 +35,17 @@ export function initOverview() {
 /**
  * Load overview data from API
  */
-export async function loadOverviewData(getAdminApiUrl, getAuthHeaders) {
+export async function loadOverviewData(getAdminApiUrl, getAuthHeaders, forceRefresh = false) {
   // Store for refresh button
   window._adminApiUrl = getAdminApiUrl;
   window._adminAuthHeaders = getAuthHeaders;
+
+  // If we already have data and not forcing refresh, just re-render
+  if (overviewData && !forceRefresh) {
+    debug.log('📊 Using cached overview data');
+    renderOverview(overviewData);
+    return;
+  }
 
   debug.log('📊 loadOverviewData called');
   const headers = getAuthHeaders();

@@ -38,7 +38,7 @@ export function initUserDetail() {
 /**
  * Load user detail data from API
  */
-export async function loadUserDetailData(userId, getAdminApiUrl, getAuthHeaders) {
+export async function loadUserDetailData(userId, getAdminApiUrl, getAuthHeaders, preloadUser = null) {
   currentUserId = userId;
   currentTimelineOffset = 0;
   timelineFilter = 'all';
@@ -51,8 +51,20 @@ export async function loadUserDetailData(userId, getAdminApiUrl, getAuthHeaders)
   const headerEl = document.getElementById('user-detail-header');
   const timelineEl = document.getElementById('user-timeline');
 
-  if (headerEl) headerEl.innerHTML = '<div class="admin-loading">Loading...</div>';
-  if (timelineEl) timelineEl.innerHTML = '<div class="admin-loading">Loading...</div>';
+  // If we have preloaded user data, display it immediately for instant feedback
+  if (preloadUser) {
+    debug.log('⚡ Using preloaded user data for instant display');
+    renderUserHeader(preloadUser);
+    renderRiskPanel(preloadUser);
+    renderUserStats(preloadUser);
+    renderHealthIndicators(preloadUser);
+
+    // Show loading for timeline only
+    if (timelineEl) timelineEl.innerHTML = '<div class="admin-loading">Loading activity...</div>';
+  } else {
+    if (headerEl) headerEl.innerHTML = '<div class="admin-loading">Loading...</div>';
+    if (timelineEl) timelineEl.innerHTML = '<div class="admin-loading">Loading...</div>';
+  }
 
   // Reset filter dropdown
   const filterSelect = document.getElementById('timeline-filter');
@@ -72,6 +84,7 @@ export async function loadUserDetailData(userId, getAdminApiUrl, getAuthHeaders)
     userData = data;
     currentTimelineOffset = data.timeline?.length || 0;
 
+    // Re-render with full data (this will update if we had preloaded data)
     renderUserHeader(data.user);
     renderRiskPanel(data.user);
     renderUserStats(data.user);

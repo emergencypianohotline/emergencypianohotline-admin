@@ -23,7 +23,7 @@ export function initProjections() {
       const getAdminApiUrl = window._adminApiUrl;
       const getAuthHeaders = window._adminAuthHeaders;
       if (getAdminApiUrl && getAuthHeaders) {
-        await loadProjectionsData(getAdminApiUrl, getAuthHeaders);
+        await loadProjectionsData(getAdminApiUrl, getAuthHeaders, true); // Force refresh
       }
     });
   }
@@ -45,9 +45,16 @@ export function initProjections() {
 /**
  * Load projections data from API
  */
-export async function loadProjectionsData(getAdminApiUrl, getAuthHeaders) {
+export async function loadProjectionsData(getAdminApiUrl, getAuthHeaders, forceRefresh = false) {
   window._adminApiUrl = getAdminApiUrl;
   window._adminAuthHeaders = getAuthHeaders;
+
+  // If we already have data and not forcing refresh, just re-render
+  if (projectionsData && !forceRefresh) {
+    debug.log('📈 Using cached projections data');
+    renderProjections(projectionsData);
+    return;
+  }
 
   debug.log('📈 Loading projections data...');
 

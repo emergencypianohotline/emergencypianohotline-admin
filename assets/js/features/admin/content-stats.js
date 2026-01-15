@@ -52,7 +52,17 @@ export function initContentStats() {
 /**
  * Load content stats data from API
  */
-export async function loadContentStatsData(getAdminApiUrl, getAuthHeaders) {
+export async function loadContentStatsData(getAdminApiUrl, getAuthHeaders, forceRefresh = false) {
+  // If we already have data and not forcing refresh, just re-render
+  if (tutorialsData.length > 0 && !forceRefresh) {
+    debug.log('📊 Using cached content data');
+    populateSongFilter();
+    filterAndRenderTutorials();
+    renderSongStats();
+    renderProblemAlerts();
+    return;
+  }
+
   const tbody = document.getElementById('content-table-body');
   const songStatsEl = document.getElementById('content-song-stats');
 
