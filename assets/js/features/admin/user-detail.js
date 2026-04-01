@@ -1,476 +1,277 @@
 /**
- * @fileoverview Admin Dashboard - User Detail Section
- * Phase 3: Enhanced User Detail View
+ * @fileoverview Admin Dashboard - User Detail (Tabler)
  */
 
 import { debug } from '../../config.js';
+import { renderChart, getColors } from './charts.js';
 
-let currentUserId = null;
 let userData = null;
-let currentTimelineOffset = 0;
 let timelineFilter = 'all';
-let isLoadingMore = false;
+let currentTimelineOffset = 0;
+let currentUserId = null;
 
-// Store API functions for pagination
-let _getAdminApiUrl = null;
-let _getAuthHeaders = null;
-
-/**
- * Initialize user detail section
- */
 export function initUserDetail() {
-  // Setup timeline filter
   const filterSelect = document.getElementById('timeline-filter');
   if (filterSelect) {
     filterSelect.addEventListener('change', (e) => {
       timelineFilter = e.target.value;
-      renderTimeline(userData?.timeline || []);
+      if (userData) renderTimeline(userData.timeline || []);
     });
   }
 
-  // Setup load more button
   const loadMoreBtn = document.getElementById('timeline-load-more');
   if (loadMoreBtn) {
-    loadMoreBtn.addEventListener('click', loadMoreTimeline);
+    loadMoreBtn.addEventListener('click', () => loadMoreTimeline());
   }
 }
 
-/**
- * Load user detail data from API
- */
 export async function loadUserDetailData(userId, getAdminApiUrl, getAuthHeaders, preloadUser = null) {
   currentUserId = userId;
   currentTimelineOffset = 0;
   timelineFilter = 'all';
 
-  // Store for pagination
-  _getAdminApiUrl = getAdminApiUrl;
-  _getAuthHeaders = getAuthHeaders;
-
-  // Show loading state
-  const headerEl = document.getElementById('user-detail-header');
-  const timelineEl = document.getElementById('user-timeline');
-
-  // If we have preloaded user data, display it immediately for instant feedback
-  if (preloadUser) {
-    debug.log('⚡ Using preloaded user data for instant display');
-    renderUserHeader(preloadUser);
-    renderRiskPanel(preloadUser);
-    renderUserStats(preloadUser);
-    renderHealthIndicators(preloadUser);
-
-    // Show loading for timeline only
-    if (timelineEl) timelineEl.innerHTML = '<div class="admin-loading">Loading activity...</div>';
-  } else {
-    if (headerEl) headerEl.innerHTML = '<div class="admin-loading">Loading...</div>';
-    if (timelineEl) timelineEl.innerHTML = '<div class="admin-loading">Loading...</div>';
-  }
-
-  // Reset filter dropdown
   const filterSelect = document.getElementById('timeline-filter');
   if (filterSelect) filterSelect.value = 'all';
+
+  // Show preloaded data instantly
+  if (preloadUser) {
+    renderUserHeader(preloadUser);
+    renderUserStats(preloadUser);
+  }
 
   try {
     const response = await fetch(getAdminApiUrl(`users/${userId}`), {
       method: 'GET',
       headers: getAuthHeaders(),
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    userData = data;
-    currentTimelineOffset = data.timeline?.length || 0;
-
-    // Re-render with full data (this will update if we had preloaded data)
-    renderUserHeader(data.user);
-    renderRiskPanel(data.user);
-    renderUserStats(data.user);
-    renderHealthIndicators(data.user);
-    renderTimeline(data.timeline);
-    renderStuckTutorials(data.stuckTutorials);
-    updateLoadMoreButton(data.hasMoreTimeline);
-
-    // Return user data for breadcrumb header
-    const firstName = data.user?.firstName || '';
-    const lastName = data.user?.lastName || '';
-    const name = `${firstName} ${lastName}`.trim() || 'Member Details';
-    return { name, user: data.user };
-
-  } catch (err) {
-    debug.error('❌ Failed to load user detail:', err);
-    if (headerEl) headerEl.innerHTML = '<div class="admin-error">Failed to load user</div>';
-    return { name: 'Member Details' };
-  }
-}
-
-/**
- * Load more timeline events
- */
-async function loadMoreTimeline() {
-  if (isLoadingMore || !_getAdminApiUrl || !_getAuthHeaders) return;
-
-  isLoadingMore = true;
-  const loadMoreBtn = document.getElementById('timeline-load-more');
-  if (loadMoreBtn) loadMoreBtn.textContent = 'Loading...';
-
-  try {
-    const response = await fetch(
-      _getAdminApiUrl(`users/${currentUserId}?offset=${currentTimelineOffset}&limit=50`),
-      { method: 'GET', headers: _getAuthHeaders() }
-    );
-
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const data = await response.json();
+    userData = await response.json();
+    const user = userData.user;
 
-    // Append new timeline events
-    userData.timeline = [...(userData.timeline || []), ...(data.timeline || [])];
-    currentTimelineOffset += data.timeline?.length || 0;
+    renderUserHeader(user);
+    renderRiskPanel(user);
+    renderHealthIndicators(user);
+    renderUserStats(user);
+    renderTimeline(userData.timeline || []);
+    renderStuckTutorials(userData.stuckTutorials || []);
 
-    renderTimeline(userData.timeline);
-    updateLoadMoreButton(data.hasMoreTimeline);
+    currentTimelineOffset = (userData.timeline || []).length;
+    updateLoadMoreButton(userData.hasMoreTimeline);
 
+    return {
+      name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+      user,
+    };
   } catch (err) {
-    debug.error('❌ Failed to load more timeline:', err);
-  } finally {
-    isLoadingMore = false;
-    if (loadMoreBtn) loadMoreBtn.textContent = 'Load More';
+    debug.error('Failed to load user detail:', err);
+    document.getElementById('user-detail-header').innerHTML =
+      '<div class="alert alert-danger">Failed to load member details</div>';
+    return { name: 'Error' };
   }
 }
 
-/**
- * Render user header
- */
 function renderUserHeader(user) {
   const container = document.getElementById('user-detail-header');
   if (!container) return;
 
   container.innerHTML = `
-    <div class="admin-user-avatar">
-      ${getInitials(user.firstName, user.lastName)}
-    </div>
-    <div class="admin-user-info">
-      <h2 class="admin-user-name">${user.firstName || ''} ${user.lastName || ''}</h2>
-      <div class="admin-user-email">${user.email}</div>
-      <div class="admin-user-meta">
-        Joined ${formatDate(user.joinedAt)}
-        <span class="admin-badge ${user.status}">${formatStatus(user.status)}</span>
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <span class="avatar avatar-lg rounded me-3 bg-primary-lt">
+            ${getInitials(user.firstName, user.lastName)}
+          </span>
+          <div>
+            <h2 class="mb-0">${user.firstName || ''} ${user.lastName || ''}</h2>
+            <div class="text-secondary">${user.email}</div>
+            <div class="mt-1">
+              Joined ${formatDate(user.joinedAt)}
+              ${formatStatusBadge(user.status)}
+              ${formatSubscriptionBadge(user)}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   `;
 }
 
-/**
- * Render user stats cards (Phase 3: Enhanced)
- */
-function renderUserStats(user) {
-  const container = document.getElementById('user-detail-stats');
-  if (!container) return;
-
-  // Build subscription badge HTML if applicable
-  let subBadge = '';
-  if (user.subscriptionStatus && user.subscriptionStatus !== 'none') {
-    const badgeClass = user.subscriptionStatus === 'active' ? 'sub-active' :
-      user.subscriptionStatus === 'past_due' ? 'sub-past-due' : 'sub-cancelled';
-    const badgeLabel = user.subscriptionStatus === 'active'
-      ? (user.billingInterval === 'yearly' ? 'Yearly' : 'Monthly')
-      : user.subscriptionStatus === 'past_due' ? 'Past Due' : 'Cancelled';
-    subBadge = `<span class="admin-sub-badge ${badgeClass}">${badgeLabel}</span>`;
-  }
-
-  container.innerHTML = `
-    <!-- Primary Stats Row -->
-    <div class="admin-stat-card">
-      <div class="admin-stat-value">${user.progressPercent}%</div>
-      <div class="admin-stat-label">Progress</div>
-    </div>
-    <div class="admin-stat-card">
-      <div class="admin-stat-value">${user.tutorialsCompleted || user.completedTutorials}</div>
-      <div class="admin-stat-label">Completed</div>
-    </div>
-    <div class="admin-stat-card">
-      <div class="admin-stat-value">${user.tutorialsStarted || 0}</div>
-      <div class="admin-stat-label">Started</div>
-    </div>
-    <div class="admin-stat-card">
-      <div class="admin-stat-value">${user.notesCount || 0}</div>
-      <div class="admin-stat-label">Notes</div>
-    </div>
-
-    <!-- Watch Time Breakdown Row -->
-    <div class="admin-stat-card">
-      <div class="admin-stat-value">${user.watchTime7Days || '—'}</div>
-      <div class="admin-stat-label">Last 7 Days</div>
-    </div>
-    <div class="admin-stat-card">
-      <div class="admin-stat-value">${user.watchTime30Days || '—'}</div>
-      <div class="admin-stat-label">Last 30 Days</div>
-    </div>
-    <div class="admin-stat-card">
-      <div class="admin-stat-value">${user.totalWatchTime}</div>
-      <div class="admin-stat-label">All Time</div>
-    </div>
-    <div class="admin-stat-card">
-      <div class="admin-stat-value">${user.totalSessions}</div>
-      <div class="admin-stat-label">Sessions</div>
-    </div>
-
-    <!-- Streaks & Completion Types Row -->
-    <div class="admin-stat-card">
-      <div class="admin-stat-value">${user.currentStreak || 0}</div>
-      <div class="admin-stat-label">Current Streak</div>
-    </div>
-    <div class="admin-stat-card">
-      <div class="admin-stat-value">${user.longestStreak || 0}</div>
-      <div class="admin-stat-label">Best Streak</div>
-    </div>
-    <div class="admin-stat-card">
-      <div class="admin-stat-value">${user.autoCompletions || 0}</div>
-      <div class="admin-stat-label">Auto Complete</div>
-    </div>
-    <div class="admin-stat-card">
-      <div class="admin-stat-value">${user.manualCompletions || 0}</div>
-      <div class="admin-stat-label">Manual Complete</div>
-    </div>
-
-    <!-- Focus Mode Row -->
-    <div class="admin-stat-card focus-mode">
-      <div class="admin-stat-value">${user.focusModeSessions || 0}</div>
-      <div class="admin-stat-label">Focus Sessions</div>
-    </div>
-    <div class="admin-stat-card focus-mode">
-      <div class="admin-stat-value">${user.focusModeSessionsPercent || 0}%</div>
-      <div class="admin-stat-label">Focus Session %</div>
-    </div>
-    <div class="admin-stat-card focus-mode">
-      <div class="admin-stat-value">${user.focusModeWatchTime || '—'}</div>
-      <div class="admin-stat-label">Focus Watch Time</div>
-    </div>
-    <div class="admin-stat-card focus-mode">
-      <div class="admin-stat-value">${user.focusModeWatchPercent || 0}%</div>
-      <div class="admin-stat-label">Focus Time %</div>
-    </div>
-
-    <!-- Login Stats Row (Phase 6) -->
-    <div class="admin-stat-card login-stat">
-      <div class="admin-stat-value">${user.totalLogins || 0}</div>
-      <div class="admin-stat-label">Total Logins</div>
-    </div>
-    <div class="admin-stat-card login-stat">
-      <div class="admin-stat-value">${user.logins7Days || 0}</div>
-      <div class="admin-stat-label">Logins (7 Days)</div>
-    </div>
-    <div class="admin-stat-card login-stat">
-      <div class="admin-stat-value">${user.avgSessionDurationFormatted || '—'}</div>
-      <div class="admin-stat-label">Avg Session</div>
-    </div>
-    <div class="admin-stat-card login-stat">
-      <div class="admin-stat-value">${formatDeviceBrowser(user.primaryDevice, user.primaryBrowser)}</div>
-      <div class="admin-stat-label">Primary Device</div>
-    </div>
-  `;
-}
-
-/**
- * Render risk assessment panel (Phase 8)
- */
 function renderRiskPanel(user) {
   const panel = document.getElementById('user-risk-panel');
-  const scoreEl = document.getElementById('risk-score-value');
-  const badgeEl = document.getElementById('risk-tier-badge');
-  const factorsEl = document.getElementById('risk-factors-list');
-
   if (!panel) return;
 
-  const riskScore = user.riskScore || 0;
-  const riskTier = user.riskTier || 'healthy';
-  const riskFactors = user.riskFactors || [];
-
-  // Show panel if there's any risk
-  if (riskScore > 0 || riskFactors.length > 0) {
-    panel.style.display = 'block';
-    panel.className = `risk-indicator-panel tier-${riskTier}`;
-  } else {
+  if (!user.riskScore || user.riskTier === 'healthy') {
     panel.style.display = 'none';
     return;
   }
 
-  // Update score
-  if (scoreEl) {
-    scoreEl.textContent = riskScore;
-  }
+  const alertClass = {
+    watch: 'alert-info',
+    at_risk: 'alert-warning',
+    critical: 'alert-danger',
+  }[user.riskTier] || 'alert-info';
 
-  // Update badge
-  if (badgeEl) {
-    const tierLabels = {
-      healthy: 'Healthy',
-      watch: 'Watch',
-      at_risk: 'At Risk',
-      critical: 'Critical',
-    };
-    const tierClasses = {
-      healthy: 'risk-healthy',
-      watch: 'risk-watch',
-      at_risk: 'risk-at-risk',
-      critical: 'risk-critical',
-    };
-    badgeEl.textContent = tierLabels[riskTier] || 'Unknown';
-    badgeEl.className = `admin-risk-badge ${tierClasses[riskTier] || ''}`;
-  }
+  const tierLabel = {
+    watch: 'Watch',
+    at_risk: 'At Risk',
+    critical: 'Critical',
+  }[user.riskTier] || user.riskTier;
 
-  // Update risk factors
-  if (factorsEl) {
-    if (riskFactors.length > 0) {
-      factorsEl.innerHTML = riskFactors
-        .map(factor => `<span class="risk-factor-tag">${factor}</span>`)
-        .join('');
-    } else {
-      factorsEl.innerHTML = '<span class="risk-factor-tag">No risk factors identified</span>';
-    }
-  }
+  panel.style.display = 'block';
+  panel.innerHTML = `
+    <div class="alert ${alertClass} mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <strong>Churn Risk: ${tierLabel}</strong>
+        <span class="badge bg-secondary">Score: ${user.riskScore}</span>
+      </div>
+      ${(user.riskFactors || []).length > 0 ? `
+        <div class="d-flex flex-wrap gap-1">
+          ${user.riskFactors.map(f => `<span class="badge bg-secondary-lt">${f}</span>`).join('')}
+        </div>
+      ` : ''}
+    </div>
+  `;
 }
 
-/**
- * Render health indicators panel (Phase 3)
- */
 function renderHealthIndicators(user) {
-  const container = document.getElementById('user-health-indicators');
+  const panel = document.getElementById('health-indicators-panel');
+  if (!panel) return;
+
+  panel.style.display = 'block';
+  panel.innerHTML = `
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="row text-center">
+          <div class="col-sm-3">
+            <div class="h4 mb-0 ${getActivityColor(user.daysSinceLastActivity)}">${user.daysSinceLastActivity ?? '—'}d</div>
+            <div class="text-secondary small">Since Last Activity</div>
+          </div>
+          <div class="col-sm-3">
+            <div class="h4 mb-0">${user.daysSinceLastCompletion ?? '—'}d</div>
+            <div class="text-secondary small">Since Last Completion</div>
+          </div>
+          <div class="col-sm-3">
+            <div class="h4 mb-0">${user.engagementTrend || '—'}</div>
+            <div class="text-secondary small">Engagement Trend</div>
+          </div>
+          <div class="col-sm-3">
+            <div class="h4 mb-0">${formatSubscriptionStatus(user.subscriptionStatus)}</div>
+            <div class="text-secondary small">Subscription</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderUserStats(user) {
+  const container = document.getElementById('user-detail-stats');
   if (!container) return;
 
-  const indicators = [];
-
-  // Days since last activity
-  if (user.daysSinceLastActivity !== null) {
-    const isWarning = user.daysSinceLastActivity > 7;
-    const isCritical = user.daysSinceLastActivity > 14;
-    indicators.push({
-      label: 'Last Activity',
-      value: user.daysSinceLastActivity === 0 ? 'Today' :
-        user.daysSinceLastActivity === 1 ? 'Yesterday' :
-          `${user.daysSinceLastActivity} days ago`,
-      status: isCritical ? 'critical' : isWarning ? 'warning' : 'good',
-    });
-  }
-
-  // Days since last completion
-  if (user.daysSinceLastCompletion !== null) {
-    const isWarning = user.daysSinceLastCompletion > 14;
-    indicators.push({
-      label: 'Last Completion',
-      value: user.daysSinceLastCompletion === 0 ? 'Today' :
-        user.daysSinceLastCompletion === 1 ? 'Yesterday' :
-          `${user.daysSinceLastCompletion} days ago`,
-      status: isWarning ? 'warning' : 'good',
-    });
-  }
-
-  // Engagement trend
-  if (user.engagementTrend) {
-    const trendIcons = {
-      increasing: '↑',
-      stable: '→',
-      decreasing: '↓',
-    };
-    indicators.push({
-      label: 'Engagement',
-      value: `${trendIcons[user.engagementTrend]} ${user.engagementTrend.charAt(0).toUpperCase() + user.engagementTrend.slice(1)}`,
-      status: user.engagementTrend === 'increasing' ? 'good' :
-        user.engagementTrend === 'decreasing' ? 'warning' : 'neutral',
-    });
-  }
-
-  // Subscription status
-  if (user.subscriptionStatus && user.subscriptionStatus !== 'none') {
-    const statusLabels = {
-      active: user.billingInterval === 'yearly' ? 'Yearly Subscriber' : 'Monthly Subscriber',
-      past_due: 'Payment Past Due',
-      cancelled: 'Subscription Cancelled',
-    };
-    indicators.push({
-      label: 'Subscription',
-      value: statusLabels[user.subscriptionStatus] || user.subscriptionStatus,
-      status: user.subscriptionStatus === 'active' ? 'good' :
-        user.subscriptionStatus === 'past_due' ? 'warning' : 'critical',
-    });
-  }
-
-  // Show/hide panel based on whether we have indicators
-  const panel = document.getElementById('health-indicators-panel');
-  if (indicators.length === 0) {
-    if (panel) panel.style.display = 'none';
-    return;
-  }
-  if (panel) panel.style.display = 'block';
-
-  container.innerHTML = indicators.map(ind => `
-    <div class="health-indicator ${ind.status}">
-      <span class="health-indicator-label">${ind.label}</span>
-      <span class="health-indicator-value">${ind.value}</span>
+  container.innerHTML = `
+    <div class="col-sm-6 col-lg-3">
+      <div class="card">
+        <div class="card-body p-3 text-center">
+          <div id="chart-user-progress" style="height:100px;"></div>
+          <div class="text-secondary small">Progress</div>
+        </div>
+      </div>
     </div>
-  `).join('');
+    <div class="col-sm-6 col-lg-3">
+      <div class="card">
+        <div class="card-body p-3 text-center">
+          <div class="h1 mb-0">${user.tutorialsCompleted || user.completedTutorials || 0}</div>
+          <div class="text-secondary small">Completed</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card">
+        <div class="card-body p-3 text-center">
+          <div class="h1 mb-0">${user.totalWatchTime || '0m'}</div>
+          <div class="text-secondary small">Total Watch Time</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card">
+        <div class="card-body p-3 text-center">
+          <div id="chart-user-streak" style="height:100px;"></div>
+          <div class="text-secondary small">Day Streak</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card">
+        <div class="card-body p-3 text-center">
+          <div class="h3 mb-0">${user.watchTime7Days || '0m'}</div>
+          <div class="text-secondary small">Watch (7d)</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card">
+        <div class="card-body p-3 text-center">
+          <div class="h3 mb-0">${user.longestStreak || 0}</div>
+          <div class="text-secondary small">Best Streak</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card">
+        <div class="card-body p-3 text-center">
+          <div class="h3 mb-0">${user.totalSessions || 0}</div>
+          <div class="text-secondary small">Sessions</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card">
+        <div class="card-body p-3 text-center">
+          <div class="h3 mb-0">${user.notesCount || 0}</div>
+          <div class="text-secondary small">Notes</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Render stat charts
+  renderUserProgressGauge(user.progressPercent || 0);
+  renderStreakGauge(user.currentStreak || 0, user.longestStreak || 0);
 }
 
-/**
- * Update load more button visibility
- */
-function updateLoadMoreButton(hasMore) {
-  const loadMoreBtn = document.getElementById('timeline-load-more');
-  if (loadMoreBtn) {
-    loadMoreBtn.style.display = hasMore ? 'inline-block' : 'none';
-  }
-}
-
-/**
- * Render activity timeline (Phase 3: with filtering)
- */
 function renderTimeline(timeline) {
   const container = document.getElementById('user-timeline');
   if (!container) return;
 
-  if (!timeline || timeline.length === 0) {
-    container.innerHTML = '<div class="admin-empty">No activity yet</div>';
-    return;
-  }
-
-  // Apply filter
   let filtered = timeline;
   if (timelineFilter !== 'all') {
-    filtered = timeline.filter(event => event.type === timelineFilter);
+    filtered = timeline.filter(e => e.type === timelineFilter);
   }
 
   if (filtered.length === 0) {
-    container.innerHTML = '<div class="admin-empty">No matching events</div>';
+    container.innerHTML = '<div class="text-secondary small py-2">No activity found</div>';
     return;
   }
 
-  container.innerHTML = filtered.map(event => {
-    const icon = getEventIcon(event.type);
-    const title = getEventTitle(event);
-    const meta = getEventMeta(event);
-
-    return `
-      <div class="admin-timeline-item ${event.type}">
-        <div class="admin-timeline-icon">${icon}</div>
-        <div class="admin-timeline-content">
-          <div class="admin-timeline-title">${title}</div>
-          ${meta ? `<div class="admin-timeline-meta">${meta}</div>` : ''}
-          <div class="admin-timeline-date">${formatDateTime(event.date)}</div>
+  container.innerHTML = filtered.map(event => `
+    <div class="list-group-item border-0 px-0 py-2">
+      <div class="d-flex align-items-start gap-2">
+        <div class="mt-1">${getEventIcon(event.type)}</div>
+        <div class="flex-fill">
+          <div>${getEventTitle(event)}</div>
+          ${getEventMeta(event)}
         </div>
+        <small class="text-secondary text-nowrap">${formatDateTime(event.date)}</small>
       </div>
-    `;
-  }).join('');
+    </div>
+  `).join('');
 }
 
-/**
- * Render stuck tutorials
- */
 function renderStuckTutorials(stuckTutorials) {
   const panel = document.getElementById('stuck-tutorials-panel');
   const list = document.getElementById('stuck-tutorials-list');
-
   if (!panel || !list) return;
 
   if (!stuckTutorials || stuckTutorials.length === 0) {
@@ -480,131 +281,184 @@ function renderStuckTutorials(stuckTutorials) {
 
   panel.style.display = 'block';
   list.innerHTML = stuckTutorials.map(item => `
-    <div class="admin-list-item warning">
-      <div class="admin-list-item-main">
-        <span class="admin-list-item-name">${item.tutorial?.tutorial_title || 'Unknown Tutorial'}</span>
-        <span class="admin-list-item-email">${item.tutorial?.song_title || ''}</span>
-      </div>
-      <div class="admin-list-item-meta">
-        <span class="admin-list-item-stat">${item.sessionCount} sessions, not completed</span>
+    <div class="list-group-item border-0 px-0 py-2">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <div class="fw-bold">${item.tutorial?.tutorial_title || 'Unknown'}</div>
+          <small class="text-secondary">${item.tutorial?.song_title || ''}</small>
+        </div>
+        <span class="badge bg-warning-lt">${item.sessionCount} sessions</span>
       </div>
     </div>
   `).join('');
 }
 
-/**
- * Get icon for timeline event
- */
-function getEventIcon(type) {
-  const icons = {
-    joined: '📅',
-    watched: '▶️',
-    completed: '✅',
-    note: '📝',
-  };
-  return icons[type] || '•';
-}
+async function loadMoreTimeline() {
+  if (!currentUserId) return;
 
-/**
- * Get title for timeline event
- */
-function getEventTitle(event) {
-  switch (event.type) {
-    case 'joined':
-      return event.title;
-    case 'watched':
-      return `Watched: ${event.tutorialTitle}`;
-    case 'completed':
-      return `Completed: ${event.tutorialTitle}`;
-    case 'note':
-      return `Added note on: ${event.tutorialTitle}`;
-    default:
-      return event.title || 'Activity';
+  const btn = document.getElementById('timeline-load-more');
+  if (btn) { btn.disabled = true; btn.textContent = 'Loading...'; }
+
+  try {
+    const getAdminApiUrl = window._adminApiUrl;
+    const getAuthHeaders = window._adminAuthHeaders;
+
+    const response = await fetch(
+      getAdminApiUrl(`users/${currentUserId}?offset=${currentTimelineOffset}&limit=50`),
+      { headers: getAuthHeaders() }
+    );
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const data = await response.json();
+    const newEvents = data.timeline || [];
+    userData.timeline = [...(userData.timeline || []), ...newEvents];
+    currentTimelineOffset += newEvents.length;
+
+    renderTimeline(userData.timeline);
+    updateLoadMoreButton(data.hasMoreTimeline);
+  } catch (err) {
+    debug.error('Failed to load more timeline:', err);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Load More'; }
   }
 }
 
-/**
- * Get meta info for timeline event
- */
-function getEventMeta(event) {
-  if (event.type === 'watched' || event.type === 'completed') {
-    const parts = [];
-    if (event.songTitle) parts.push(event.songTitle);
-    if (event.watchTimeFormatted) parts.push(`${event.watchTimeFormatted} watched`);
-    return parts.join(' • ');
-  }
-  if (event.type === 'note' && event.songTitle) {
-    return event.songTitle;
-  }
-  return null;
+function updateLoadMoreButton(hasMore) {
+  const btn = document.getElementById('timeline-load-more');
+  if (btn) btn.style.display = hasMore ? 'inline-block' : 'none';
 }
 
-/**
- * Get initials from name
- */
+// ─── Charts ──────────────────────────────────────────────
+
+function renderUserProgressGauge(progressPercent) {
+  const colors = getColors();
+  const color = progressPercent >= 70 ? colors.success : progressPercent >= 30 ? colors.primary : colors.warning;
+
+  renderChart('chart-user-progress', {
+    chart: { type: 'radialBar', height: 100, sparkline: { enabled: true } },
+    series: [Math.min(progressPercent, 100)],
+    plotOptions: {
+      radialBar: {
+        hollow: { size: '50%' },
+        dataLabels: {
+          name: { show: false },
+          value: {
+            show: true, fontSize: '20px', fontWeight: 700,
+            formatter: () => `${progressPercent}%`, offsetY: 5,
+          },
+        },
+        track: { background: 'rgba(255,255,255,0.08)' },
+      },
+    },
+    colors: [color],
+  });
+}
+
+function renderStreakGauge(currentStreak, longestStreak) {
+  const colors = getColors();
+  const pct = longestStreak > 0 ? Math.round((currentStreak / longestStreak) * 100) : (currentStreak > 0 ? 100 : 0);
+  const color = currentStreak >= 7 ? colors.success : currentStreak >= 3 ? colors.info : colors.secondary;
+
+  renderChart('chart-user-streak', {
+    chart: { type: 'radialBar', height: 100, sparkline: { enabled: true } },
+    series: [Math.min(pct, 100)],
+    plotOptions: {
+      radialBar: {
+        hollow: { size: '50%' },
+        dataLabels: {
+          name: { show: false },
+          value: {
+            show: true, fontSize: '20px', fontWeight: 700,
+            formatter: () => `${currentStreak}`, offsetY: 5,
+          },
+        },
+        track: { background: 'rgba(255,255,255,0.08)' },
+      },
+    },
+    colors: [color],
+  });
+}
+
+// Helpers
 function getInitials(firstName, lastName) {
-  const first = (firstName || '')[0] || '';
-  const last = (lastName || '')[0] || '';
-  return (first + last).toUpperCase() || '?';
+  return ((firstName || '')[0] || '') + ((lastName || '')[0] || '') || '?';
 }
 
-/**
- * Format date for display
- */
 function formatDate(dateStr) {
   if (!dateStr) return '';
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-/**
- * Format datetime for display
- */
 function formatDateTime(dateStr) {
   if (!dateStr) return '';
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffDays = Math.floor((now - d) / 86400000);
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-/**
- * Format status for display
- */
-function formatStatus(status) {
-  const labels = {
-    active: 'Active',
-    at_risk: 'At Risk',
-    dormant: 'Dormant',
-    new: 'New',
+function formatStatusBadge(status) {
+  const config = {
+    active: { label: 'Active', cls: 'bg-success-lt' },
+    at_risk: { label: 'At Risk', cls: 'bg-warning-lt' },
+    dormant: { label: 'Dormant', cls: 'bg-danger-lt' },
+    new: { label: 'New', cls: 'bg-info-lt' },
   };
-  return labels[status] || status;
+  const c = config[status] || { label: status || '', cls: '' };
+  return `<span class="badge ${c.cls} ms-1">${c.label}</span>`;
 }
 
-/**
- * Format device and browser for compact display
- */
-function formatDeviceBrowser(device, browser) {
-  if (!device && !browser) return '—';
-
-  // Capitalize device
-  const deviceLabel = device
-    ? device.charAt(0).toUpperCase() + device.slice(1)
-    : '';
-
-  // Shorten browser names
-  const browserShort = browser || '';
-
-  if (deviceLabel && browserShort) {
-    return `${deviceLabel} / ${browserShort}`;
+function formatSubscriptionBadge(user) {
+  if (user.subscriptionStatus === 'active') {
+    const type = user.billingInterval === 'yearly' ? 'Annual' : 'Monthly';
+    return `<span class="badge bg-green-lt ms-1">${type}</span>`;
   }
-  return deviceLabel || browserShort || '—';
+  if (user.subscriptionStatus === 'past_due') {
+    return '<span class="badge bg-danger-lt ms-1">Past Due</span>';
+  }
+  return '';
+}
+
+function formatSubscriptionStatus(status) {
+  const labels = { active: 'Active', past_due: 'Past Due', cancelled: 'Cancelled', none: 'None' };
+  return labels[status] || status || '—';
+}
+
+function getActivityColor(days) {
+  if (days === undefined || days === null) return '';
+  if (days <= 3) return 'text-success';
+  if (days <= 7) return 'text-warning';
+  return 'text-danger';
+}
+
+function getEventIcon(type) {
+  switch (type) {
+    case 'joined': return '<span class="badge bg-cyan-lt badge-sm">JOIN</span>';
+    case 'watched': return '<span class="badge bg-blue-lt badge-sm">PLAY</span>';
+    case 'completed': return '<span class="badge bg-green-lt badge-sm">DONE</span>';
+    case 'note': return '<span class="badge bg-purple-lt badge-sm">NOTE</span>';
+    default: return '<span class="badge bg-secondary-lt badge-sm">EVENT</span>';
+  }
+}
+
+function getEventTitle(event) {
+  switch (event.type) {
+    case 'joined': return 'Joined Emergency Piano Hotline';
+    case 'watched': return `Watched <strong>${event.tutorialTitle || ''}</strong>`;
+    case 'completed': return `Completed <strong>${event.tutorialTitle || ''}</strong>`;
+    case 'note': return `Added notes to <strong>${event.tutorialTitle || ''}</strong>`;
+    default: return event.title || 'Activity';
+  }
+}
+
+function getEventMeta(event) {
+  const parts = [];
+  if (event.songTitle) parts.push(event.songTitle);
+  if (event.watchTimeFormatted) parts.push(event.watchTimeFormatted);
+  if (parts.length === 0) return '';
+  return `<small class="text-secondary">${parts.join(' · ')}</small>`;
 }

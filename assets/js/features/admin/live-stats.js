@@ -1,89 +1,67 @@
 /**
- * @fileoverview Admin Dashboard - Live Stats Section
+ * @fileoverview Admin Dashboard - Activity Section (Tabler)
  *
- * Real-time activity feed and live counts using Supabase Realtime.
- * Subscribes to watch_sessions, progress, notes, and users tables.
+ * Rolling 7-day activity feed with real-time updates for today.
  */
 
 import { debug } from '../../config.js';
 
-/** Live stats state */
 let liveChannel = null;
-let activityFeed = [];
-const MAX_FEED_ITEMS = 50;
-
-/** Live counts */
-let liveCounts = {
-  watchingNow: 0,
-  todayCompletions: 0,
-  todayWatchSeconds: 0,
-  todaySignups: 0,
-};
-
-/** User lookup cache (populated from API) */
+let globalChannel = null;
+let daysData = [];
 let userCache = new Map();
 let tutorialCache = new Map();
+let excludedUserIds = new Set();
 
-/**
- * Initialize live stats section
- */
 export function initLiveStats() {
-  debug.log('📡 Live stats initialized');
+  debug.log('Activity stats initialized');
 }
 
-/**
- * Start real-time subscriptions
- */
 export async function startLiveStats(getAdminApiUrl, getAuthHeaders) {
-  debug.log('📡 Starting live stats...');
-
-  // Get Supabase client from global
   const supabase = window.HOTLINE?.supabase;
-  if (!supabase) {
-    debug.error('❌ Supabase client not available for live stats');
-    renderError('Supabase client not available');
-    return;
+  await loadActivityData(getAdminApiUrl, getAuthHeaders);
+  renderAllDays();
+  if (supabase) {
+    subscribeToChanges(supabase);
   }
-
-  // Load initial data
-  await loadInitialData(getAdminApiUrl, getAuthHeaders);
-
-  // Render initial state
-  renderLiveCounts();
-  renderActivityFeed();
-
-  // Subscribe to real-time changes
-  subscribeToChanges(supabase);
 }
 
-/**
- * Stop real-time subscriptions
- */
 export function stopLiveStats() {
   if (liveChannel) {
-    debug.log('📡 Stopping live stats subscriptions');
     liveChannel.unsubscribe();
     liveChannel = null;
   }
 }
 
-/**
- * Load initial data from API
- */
-async function loadInitialData(getAdminApiUrl, getAuthHeaders) {
+export function startGlobalRealtime(onMembershipChange) {
+  const supabase = window.HOTLINE?.supabase;
+  if (!supabase || globalChannel) return;
+
+  let ready = false;
+
+  globalChannel = supabase
+    .channel('admin-global')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'subscriptions' },
+      () => { if (ready) onMembershipChange(); })
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        // Brief delay to ensure initial connection noise is ignored
+        setTimeout(() => { ready = true; }, 2000);
+      }
+    });
+}
+
+async function loadActivityData(getAdminApiUrl, getAuthHeaders) {
   try {
-    const response = await fetch(getAdminApiUrl('live'), {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const response = await fetch(getAdminApiUrl('live') + '?tz=' + encodeURIComponent(tz), {
       method: 'GET',
       headers: getAuthHeaders(),
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const data = await response.json();
 
-    // Populate caches
     if (data.users) {
       data.users.forEach(u => {
         userCache.set(u.id, { firstName: u.firstName, lastName: u.lastName, email: u.email });
@@ -91,286 +69,165 @@ async function loadInitialData(getAdminApiUrl, getAuthHeaders) {
     }
     if (data.tutorials) {
       data.tutorials.forEach(t => {
-        tutorialCache.set(t.id, { title: t.title, songTitle: t.songTitle });
+        tutorialCache.set(t.id, { title: t.title, songTitle: t.songTitle, lessonNumber: t.lessonNumber });
       });
     }
 
-    // Set initial counts
-    liveCounts = {
-      watchingNow: data.watchingNow || 0,
-      todayCompletions: data.todayCompletions || 0,
-      todayWatchSeconds: data.todayWatchSeconds || 0,
-      todaySignups: data.todaySignups || 0,
-    };
-
-    // Set initial activity feed
-    activityFeed = data.recentActivity || [];
-
-    debug.log('📡 Initial live data loaded', liveCounts);
-
+    daysData = data.days || [];
+    if (data.excludedUserIds) {
+      excludedUserIds = new Set(data.excludedUserIds);
+    }
   } catch (err) {
-    debug.error('❌ Failed to load initial live data:', err);
+    debug.error('Failed to load activity data:', err);
   }
 }
 
-/**
- * Subscribe to real-time changes
- */
 function subscribeToChanges(supabase) {
-  // Clean up existing subscription
-  if (liveChannel) {
-    liveChannel.unsubscribe();
-  }
-
-  debug.log('📡 Subscribing to real-time changes...');
+  if (liveChannel) liveChannel.unsubscribe();
 
   liveChannel = supabase
     .channel('admin-live-stats')
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'watch_sessions' },
-      (payload) => handleNewWatchSession(payload.new)
-    )
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'watch_sessions' },
-      (payload) => handleWatchSessionUpdate(payload.new, payload.old)
-    )
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'progress' },
-      (payload) => handleNewProgress(payload.new)
-    )
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'notes' },
-      (payload) => handleNoteChange(payload.new, payload.eventType)
-    )
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'users' },
-      (payload) => handleNewUser(payload.new)
-    )
-    .subscribe((status) => {
-      debug.log('📡 Realtime subscription status:', status);
-      if (status === 'SUBSCRIBED') {
-        updateConnectionStatus(true);
-      } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-        updateConnectionStatus(false);
-      }
-    });
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'watch_sessions' },
+      (payload) => handleNewWatchSession(payload.new))
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'watch_sessions' },
+      (payload) => handleWatchSessionUpdate(payload.new, payload.old))
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'progress' },
+      (payload) => handleNewProgress(payload.new))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' },
+      (payload) => handleNoteChange(payload.new, payload.eventType))
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'users' },
+      (payload) => handleNewUser(payload.new))
+    .subscribe();
 }
 
-/**
- * Handle new watch session (user started watching)
- */
+function getToday() {
+  return daysData.length > 0 ? daysData[0] : null;
+}
+
 function handleNewWatchSession(session) {
-  debug.log('📡 New watch session:', session);
+  if (excludedUserIds.has(session.user_id)) return;
+  const today = getToday();
+  if (!today) return;
+  today.watchingNow = (today.watchingNow || 0) + 1;
 
-  // Increment watching count
-  liveCounts.watchingNow++;
-  renderLiveCounts();
-
-  // Add to activity feed
   const user = userCache.get(session.user_id);
   const tutorial = tutorialCache.get(session.tutorial_id);
 
-  addActivityItem({
+  today.activity.unshift({
     type: 'watching',
     userId: session.user_id,
-    userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Unknown User',
-    tutorialId: session.tutorial_id,
+    userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Unknown',
     tutorialTitle: tutorial?.title || 'Unknown Tutorial',
     songTitle: tutorial?.songTitle,
+    lessonNumber: tutorial?.lessonNumber,
     timestamp: session.started_at,
   });
+
+  renderDay(0);
 }
 
-/**
- * Handle watch session update (ended or completed)
- */
 function handleWatchSessionUpdate(newSession, oldSession) {
-  debug.log('📡 Watch session updated:', newSession);
-
-  // If session ended (has ended_at now but didn't before)
+  if (excludedUserIds.has(newSession.user_id)) return;
   if (newSession.ended_at && !oldSession?.ended_at) {
-    // Decrement watching count
-    liveCounts.watchingNow = Math.max(0, liveCounts.watchingNow - 1);
-
-    // Add watch time to today's total
-    const watchSeconds = newSession.total_seconds_watched || 0;
-    liveCounts.todayWatchSeconds += watchSeconds;
-
-    renderLiveCounts();
-  }
-
-  // If auto-completed during session
-  if (newSession.completed_during_session && !oldSession?.completed_during_session) {
-    liveCounts.todayCompletions++;
-    renderLiveCounts();
-
-    const user = userCache.get(newSession.user_id);
-    const tutorial = tutorialCache.get(newSession.tutorial_id);
-
-    addActivityItem({
-      type: 'completed',
-      userId: newSession.user_id,
-      userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Unknown User',
-      tutorialId: newSession.tutorial_id,
-      tutorialTitle: tutorial?.title || 'Unknown Tutorial',
-      songTitle: tutorial?.songTitle,
-      timestamp: new Date().toISOString(),
-    });
+    const today = getToday();
+    if (!today) return;
+    today.watchingNow = Math.max(0, (today.watchingNow || 0) - 1);
+    today.watchSeconds = (today.watchSeconds || 0) + (newSession.total_seconds_watched || 0);
+    renderDay(0);
   }
 }
 
-/**
- * Handle new progress entry (manual completion)
- */
 function handleNewProgress(progress) {
-  debug.log('📡 New progress:', progress);
-
+  if (excludedUserIds.has(progress.user_id)) return;
   if (progress.status === 'completed') {
-    liveCounts.todayCompletions++;
-    renderLiveCounts();
+    const today = getToday();
+    if (!today) return;
+    today.completions = (today.completions || 0) + 1;
 
     const user = userCache.get(progress.user_id);
     const tutorial = tutorialCache.get(progress.tutorial_id);
-
-    addActivityItem({
+    today.activity.unshift({
       type: 'completed',
-      userId: progress.user_id,
-      userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Unknown User',
-      tutorialId: progress.tutorial_id,
+      userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Unknown',
       tutorialTitle: tutorial?.title || 'Unknown Tutorial',
       songTitle: tutorial?.songTitle,
+      lessonNumber: tutorial?.lessonNumber,
       timestamp: progress.updated_at || new Date().toISOString(),
     });
+
+    renderDay(0);
   }
 }
 
-/**
- * Handle note changes
- */
 function handleNoteChange(note, eventType) {
-  debug.log('📡 Note change:', eventType, note);
-
+  if (excludedUserIds.has(note.user_id)) return;
   if (eventType === 'INSERT' || eventType === 'UPDATE') {
+    const today = getToday();
+    if (!today) return;
+
     const user = userCache.get(note.user_id);
     const tutorial = tutorialCache.get(note.tutorial_id);
-
-    addActivityItem({
+    today.activity.unshift({
       type: 'note',
-      userId: note.user_id,
-      userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Unknown User',
-      tutorialId: note.tutorial_id,
+      userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Unknown',
       tutorialTitle: tutorial?.title || 'Unknown Tutorial',
       songTitle: tutorial?.songTitle,
+      lessonNumber: tutorial?.lessonNumber,
       timestamp: note.updated_at || new Date().toISOString(),
     });
+
+    renderDay(0);
   }
 }
 
-/**
- * Handle new user signup
- */
 function handleNewUser(user) {
-  debug.log('📡 New user:', user);
+  userCache.set(user.id, { firstName: user.first_name, lastName: user.last_name, email: user.email });
+  if (excludedUserIds.has(user.id)) return;
+  const today = getToday();
+  if (!today) return;
+  today.signups = (today.signups || 0) + 1;
 
-  // Add to cache
-  userCache.set(user.id, {
-    firstName: user.first_name,
-    lastName: user.last_name,
-    email: user.email,
-  });
-
-  liveCounts.todaySignups++;
-  renderLiveCounts();
-
-  addActivityItem({
+  today.activity.unshift({
     type: 'signup',
-    userId: user.id,
     userName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
     timestamp: user.created_at,
   });
+
+  renderDay(0);
 }
 
-/**
- * Add item to activity feed (at top)
- */
-function addActivityItem(item) {
-  activityFeed.unshift(item);
 
-  // Limit feed size
-  if (activityFeed.length > MAX_FEED_ITEMS) {
-    activityFeed = activityFeed.slice(0, MAX_FEED_ITEMS);
-  }
-
-  renderActivityFeed();
-}
-
-/**
- * Update connection status indicator
- */
-function updateConnectionStatus(connected) {
-  const indicator = document.getElementById('live-connection-status');
-  if (indicator) {
-    indicator.className = `live-connection-indicator ${connected ? 'connected' : 'disconnected'}`;
-    indicator.title = connected ? 'Connected' : 'Disconnected';
-  }
-}
-
-/**
- * Format duration as Xh Xm or Xm
- */
 function formatDuration(seconds) {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
+  if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
 }
 
-/**
- * Format relative time (e.g., "2 min ago")
- */
-function formatRelativeTime(timestamp) {
-  const now = new Date();
-  const then = new Date(timestamp);
-  const diffSeconds = Math.floor((now - then) / 1000);
-
-  if (diffSeconds < 60) {
-    return 'just now';
-  }
-  if (diffSeconds < 3600) {
-    const mins = Math.floor(diffSeconds / 60);
-    return `${mins} min ago`;
-  }
-  if (diffSeconds < 86400) {
-    const hours = Math.floor(diffSeconds / 3600);
-    return `${hours}h ago`;
-  }
-  const days = Math.floor(diffSeconds / 86400);
-  return `${days}d ago`;
+function formatTime(timestamp) {
+  const t = new Date(timestamp);
+  const h = t.getHours();
+  const m = t.getMinutes().toString().padStart(2, '0');
+  return `${h}:${m}`;
 }
 
-/**
- * Get icon for activity type
- */
-function getActivityIcon(type) {
+function formatDayTitle(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+function getActivityIcon(type, isResume) {
   switch (type) {
-    case 'watching': return '▶️';
-    case 'completed': return '✅';
-    case 'note': return '📝';
-    case 'signup': return '👋';
-    default: return '•';
+    case 'watching': return isResume
+      ? '<span class="badge bg-cyan-lt badge-sm me-1" style="vertical-align:middle">RESUME</span>'
+      : '<span class="badge bg-blue-lt badge-sm me-1" style="vertical-align:middle">PLAY</span>';
+    case 'completed': return '<span class="badge bg-green-lt badge-sm me-1" style="vertical-align:middle">DONE</span>';
+    case 'note': return '<span class="badge bg-purple-lt badge-sm me-1" style="vertical-align:middle">NOTE</span>';
+    case 'signup': return '<span class="badge bg-orange-lt badge-sm me-1" style="vertical-align:middle">NEW</span>';
+    default: return '';
   }
 }
 
-/**
- * Get label for activity type
- */
 function getActivityLabel(type) {
   switch (type) {
     case 'watching': return 'started watching';
@@ -381,63 +238,118 @@ function getActivityLabel(type) {
   }
 }
 
-/**
- * Render live counts
- */
-function renderLiveCounts() {
-  const watchingEl = document.getElementById('live-watching-now');
-  const completionsEl = document.getElementById('live-today-completions');
-  const watchTimeEl = document.getElementById('live-today-watchtime');
-  const signupsEl = document.getElementById('live-today-signups');
-
-  if (watchingEl) watchingEl.textContent = liveCounts.watchingNow;
-  if (completionsEl) completionsEl.textContent = liveCounts.todayCompletions;
-  if (watchTimeEl) watchTimeEl.textContent = formatDuration(liveCounts.todayWatchSeconds);
-  if (signupsEl) signupsEl.textContent = liveCounts.todaySignups;
-}
-
-/**
- * Render activity feed
- */
-function renderActivityFeed() {
-  const container = document.getElementById('live-activity-feed');
-  if (!container) return;
-
-  if (activityFeed.length === 0) {
-    container.innerHTML = '<div class="admin-empty">No activity yet today</div>';
-    return;
-  }
-
-  container.innerHTML = activityFeed.map(item => `
-    <div class="live-activity-item ${item.type}">
-      <span class="live-activity-icon">${getActivityIcon(item.type)}</span>
-      <div class="live-activity-content">
-        <span class="live-activity-user">${escapeHtml(item.userName)}</span>
-        <span class="live-activity-action">${getActivityLabel(item.type)}</span>
-        ${item.tutorialTitle ? `<span class="live-activity-tutorial">${escapeHtml(item.tutorialTitle)}</span>` : ''}
-        ${item.songTitle ? `<span class="live-activity-song">${escapeHtml(item.songTitle)}</span>` : ''}
-      </div>
-      <span class="live-activity-time">${formatRelativeTime(item.timestamp)}</span>
-    </div>
-  `).join('');
-}
-
-/**
- * Render error state
- */
-function renderError(message) {
-  const container = document.getElementById('live-activity-feed');
-  if (container) {
-    container.innerHTML = `<div class="admin-error">${escapeHtml(message)}</div>`;
-  }
-}
-
-/**
- * Escape HTML to prevent XSS
- */
 function escapeHtml(text) {
   if (!text) return '';
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function renderAllDays() {
+  const container = document.getElementById('activity-days-container');
+  if (!container) return;
+
+  if (daysData.length === 0) {
+    container.innerHTML = '<div class="text-secondary">No activity data available</div>';
+    return;
+  }
+
+  container.innerHTML = daysData.map((day, i) => `
+    <div class="card mb-3" id="activity-day-${i}">
+      <div class="card-header">
+        <h3 class="card-title">${day.isToday ? 'Today' : formatDayTitle(day.date)}</h3>
+        <div class="card-actions d-flex gap-2 align-items-center">
+          ${day.isToday ? '<span id="live-connection-status" class="badge bg-success text-white" style="font-weight:700;text-transform:uppercase">LIVE</span>' : ''}
+        </div>
+      </div>
+      <div class="card-body">
+        ${renderDayCounters(day)}
+        ${renderDayFeed(day)}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderDay(index) {
+  const day = daysData[index];
+  if (!day) return;
+
+  const card = document.getElementById(`activity-day-${index}`);
+  if (!card) return;
+
+  const body = card.querySelector('.card-body');
+  if (body) {
+    body.innerHTML = `${renderDayCounters(day)}${renderDayFeed(day)}`;
+  }
+}
+
+function renderDayCounters(day) {
+  const counters = [];
+
+  if (day.isToday) {
+    counters.push({ value: day.watchingNow || 0, label: 'Watching' });
+  } else {
+    counters.push({ value: day.uniqueLogins || 0, label: 'Logins' });
+  }
+  counters.push({ value: day.sessions || 0, label: 'Plays' });
+  counters.push({ value: day.completions || 0, label: 'Completions' });
+  counters.push({ value: formatDuration(day.watchSeconds || 0), label: 'Watch Time' });
+  counters.push({ value: day.signups || 0, label: 'Signups' });
+
+  return `
+    <div class="row mb-3 text-center">
+      ${counters.map(c => `
+        <div class="col">
+          <div class="live-counter-value">${c.value}</div>
+          <div class="text-secondary small">${c.label}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderDayFeed(day) {
+  const activity = day.activity || [];
+
+  if (activity.length === 0) {
+    return '<div class="text-secondary small py-2">No activity</div>';
+  }
+
+  // Mark resumed watches (same user + same tutorial appearing earlier in the feed)
+  // Feed is newest-first, so scan from the end (oldest) to mark later occurrences as resumes
+  const seenWatching = new Set();
+  const resumeFlags = new Array(activity.length).fill(false);
+  for (let i = activity.length - 1; i >= 0; i--) {
+    const item = activity[i];
+    if (item.type === 'watching' && item.userId && item.tutorialId) {
+      const key = `${item.userId}:${item.tutorialId}`;
+      if (seenWatching.has(key)) {
+        resumeFlags[i] = true;
+      } else {
+        seenWatching.add(key);
+      }
+    }
+  }
+
+  return `
+    <div class="list-group list-group-flush">
+      ${activity.map((item, i) => {
+        const isResume = resumeFlags[i];
+        const label = item.type === 'watching' && isResume ? 'resumed' : getActivityLabel(item.type);
+        return `
+        <div class="list-group-item border-0 px-0 py-2">
+          <div class="d-flex align-items-center gap-2">
+            <small class="text-secondary text-nowrap" style="width:2.5rem;flex-shrink:0;text-align:center">${formatTime(item.timestamp)}</small>
+            <div style="width:62px;flex-shrink:0;display:flex;align-items:center;justify-content:center">${getActivityIcon(item.type, isResume)}</div>
+            <div class="flex-fill">
+              <span class="fw-bold">${escapeHtml(item.userName)}</span>
+              <span class="text-secondary">${label}</span>
+              ${item.type === 'signup' && item.location ? `<span class="text-secondary">from</span> <span class="fw-bold">${escapeHtml(item.location)}</span>${item.flag ? ' ' + item.flag : ''}` : ''}
+              ${item.type !== 'signup' && (item.songTitle || item.lessonNumber || item.tutorialTitle) ? `<span class="fw-bold">${item.songTitle ? escapeHtml(item.songTitle) : ''}${item.lessonNumber ? '<span class="text-secondary fw-normal"> · </span>Lesson ' + item.lessonNumber : ''}${item.tutorialTitle && item.tutorialTitle.match(/^Part\s+\d+/) ? '<span class="text-secondary fw-normal"> · </span>' + item.tutorialTitle.match(/^Part\s+\d+/)[0] : ''}</span>` : ''}
+            </div>
+          </div>
+        </div>
+      `}).join('')}
+    </div>
+  `;
 }

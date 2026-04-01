@@ -1,344 +1,344 @@
 /**
- * Tutorial Detail View
- * Comprehensive analytics for a single tutorial
+ * @fileoverview Admin Dashboard - Tutorial Detail (Tabler)
  */
 
-import { createDebugger } from '../../utils/debug.js';
-const debug = createDebugger('admin:tutorial-detail');
+import { debug } from '../../config.js';
+import { renderChart, getColors } from './charts.js';
 
 /**
- * Load and display tutorial detail
+ * Load and render tutorial detail
  */
 export async function loadTutorialDetail(tutorialId, getAdminApiUrl, getAuthHeaders, navigateToView) {
   const container = document.getElementById('tutorial-detail-container');
-  if (!container) {
-    debug.error('Tutorial detail container not found');
-    return;
-  }
+  if (!container) return;
 
-  // Show loading state
-  container.innerHTML = '<div class="admin-loading">Loading tutorial details...</div>';
+  container.innerHTML = '<div class="text-secondary">Loading...</div>';
 
   try {
     const response = await fetch(getAdminApiUrl(`tutorials/${tutorialId}`), {
       method: 'GET',
       headers: getAuthHeaders(),
     });
-
-    if (!response.ok) {
-      throw new Error(`Failed to load tutorial details: ${response.statusText}`);
-    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const data = await response.json();
-    debug.log('📊 Tutorial detail loaded:', data);
-
-    renderTutorialDetail(data, navigateToView);
-
+    renderTutorialDetail(container, data, navigateToView);
   } catch (err) {
-    debug.error('❌ Failed to load tutorial detail:', err);
-    container.innerHTML = `
-      <div class="admin-error">
-        <p>Failed to load tutorial details</p>
-        <button class="admin-button" onclick="window.history.back()">Go Back</button>
-      </div>
-    `;
+    debug.error('Failed to load tutorial detail:', err);
+    container.innerHTML = '<div class="alert alert-danger">Failed to load tutorial details</div>';
   }
 }
 
-/**
- * Render tutorial detail view
- */
-function renderTutorialDetail(data, navigateToView) {
-  const container = document.getElementById('tutorial-detail-container');
-  const { tutorial, stats, watchDistribution, viewers, recentActivity, studentsStuck: membersStuck } = data;
+function renderTutorialDetail(container, data, navigateToView) {
+  const { tutorial, stats, watchDistribution, viewers, studentsStuck, recentActivity } = data;
+  const membersStuck = studentsStuck || data.membersStuck || [];
 
   container.innerHTML = `
-    <div class="admin-detail-view">
-      <!-- Header -->
-      <div class="admin-detail-header">
-        <div class="admin-detail-back">
-          <button class="admin-button-icon" id="back-to-content">
-            ← Back to Content Stats
-          </button>
+    <!-- Header -->
+    <div class="card mb-3">
+      <div class="card-body">
+        <h2 class="mb-1">${tutorial.title}</h2>
+        <div class="text-secondary">
+          ${tutorial.songTitle || ''}
+          ${tutorial.lessonTitle ? ` · ${tutorial.lessonTitle}` : ''}
+          ${tutorial.durationFormatted ? ` · ${tutorial.durationFormatted}` : ''}
         </div>
-        <div class="admin-detail-title">
-          <h2>${tutorial.title}</h2>
-          <div class="admin-detail-subtitle">
-            ${tutorial.songTitle} • ${tutorial.lessonTitle}
-            ${tutorial.durationFormatted ? ` • ${tutorial.durationFormatted}` : ''}
+      </div>
+    </div>
+
+    <!-- Key stats -->
+    <div class="row row-deck row-cards mb-3">
+      <div class="col-sm-6 col-lg-3">
+        <div class="card">
+          <div class="card-body p-3 text-center">
+            <div class="h1 mb-0">${stats.uniqueViewers}</div>
+            <div class="text-secondary small">Viewers</div>
           </div>
         </div>
       </div>
-
-      <!-- Key Stats Grid -->
-      <div class="admin-stats-grid tutorial-detail-stats">
-        <div class="admin-stat-card">
-          <div class="admin-stat-value">${stats.uniqueViewers}</div>
-          <div class="admin-stat-label">Unique Viewers</div>
-        </div>
-        <div class="admin-stat-card">
-          <div class="admin-stat-value">${stats.totalSessions}</div>
-          <div class="admin-stat-label">Total Sessions</div>
-        </div>
-        <div class="admin-stat-card">
-          <div class="admin-stat-value">${stats.totalCompletions}</div>
-          <div class="admin-stat-label">Completions</div>
-        </div>
-        <div class="admin-stat-card">
-          <div class="admin-stat-value ${getCompletionRateClass(stats.completionRate)}">${stats.completionRate}%</div>
-          <div class="admin-stat-label">Completion Rate</div>
-        </div>
-      </div>
-
-      <!-- Secondary Stats -->
-      <div class="admin-stats-grid tutorial-detail-stats">
-        <div class="admin-stat-card">
-          <div class="admin-stat-value">${stats.avgWatchTimeFormatted || '-'}</div>
-          <div class="admin-stat-label">Avg Watch Time</div>
-        </div>
-        <div class="admin-stat-card">
-          <div class="admin-stat-value">${stats.rewatchRate}%</div>
-          <div class="admin-stat-label">Rewatch Rate</div>
-        </div>
-        <div class="admin-stat-card">
-          <div class="admin-stat-value">${stats.totalNotesCount}</div>
-          <div class="admin-stat-label">Total Notes</div>
-        </div>
-        <div class="admin-stat-card">
-          <div class="admin-stat-value">${stats.notesDensity.toFixed(2)}</div>
-          <div class="admin-stat-label">Notes per Viewer</div>
-        </div>
-      </div>
-
-      ${stats.medianExitPercent !== null ? `
-        <div class="admin-panel tutorial-exit-analysis">
-          <h3>📊 Engagement Analysis</h3>
-          <div class="admin-stats-grid">
-            <div class="admin-stat-card">
-              <div class="admin-stat-value">${stats.medianExitPercent}%</div>
-              <div class="admin-stat-label">Median Exit Point</div>
-            </div>
-            ${stats.avgTimeToCompletion !== null ? `
-              <div class="admin-stat-card">
-                <div class="admin-stat-value">${stats.avgTimeToCompletion} days</div>
-                <div class="admin-stat-label">Avg Time to Complete</div>
-              </div>
-            ` : ''}
-            ${stats.medianTimeToCompletion !== null ? `
-              <div class="admin-stat-card">
-                <div class="admin-stat-value">${stats.medianTimeToCompletion} days</div>
-                <div class="admin-stat-label">Median Time to Complete</div>
-              </div>
-            ` : ''}
+      <div class="col-sm-6 col-lg-3">
+        <div class="card">
+          <div class="card-body p-3 text-center">
+            <div class="h1 mb-0">${stats.totalSessions}</div>
+            <div class="text-secondary small">Sessions</div>
           </div>
         </div>
-      ` : ''}
-
-      <!-- Watch Distribution -->
-      <div class="admin-panel">
-        <h3>📈 Watch Time Distribution</h3>
-        <div class="watch-distribution-chart">
-          ${renderWatchDistribution(watchDistribution, stats.uniqueViewers)}
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="card">
+          <div class="card-body p-3 text-center">
+            <div class="h1 mb-0">${stats.totalCompletions}</div>
+            <div class="text-secondary small">Completions</div>
+          </div>
         </div>
       </div>
-
-      <!-- Members Stuck (if any) -->
-      ${membersStuck.length > 0 ? `
-        <div class="admin-panel alert-panel">
-          <div class="admin-panel-header">
-            <h3>⚠️ Members Stuck on This Tutorial</h3>
-            <span class="admin-badge badge-warning">${membersStuck.length}</span>
+      <div class="col-sm-6 col-lg-3">
+        <div class="card">
+          <div class="card-body p-3 text-center">
+            <div id="chart-tutorial-completion-gauge" style="height:90px;"></div>
+            <div class="text-secondary small">Completion Rate</div>
           </div>
-          <div class="admin-list">
-            ${membersStuck.slice(0, 10).map(member => `
-              <div class="admin-list-item clickable" data-user-id="${member.userId}">
-                <div class="admin-list-content">
-                  <div class="admin-list-title">${member.name}</div>
-                  <div class="admin-list-meta">
-                    Watched ${member.watchPercent}% • ${member.sessionCount} sessions •
-                    Last watched ${member.daysSinceLastWatch} days ago
+        </div>
+      </div>
+    </div>
+
+    <!-- Secondary stats -->
+    <div class="row row-deck row-cards mb-3">
+      <div class="col-sm-6 col-lg-3">
+        <div class="card">
+          <div class="card-body p-3 text-center">
+            <div class="h3 mb-0">${stats.avgWatchTimeFormatted || '—'}</div>
+            <div class="text-secondary small">Avg Watch Time</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="card">
+          <div class="card-body p-3 text-center">
+            <div class="h3 mb-0">${stats.rewatchRate || 0}%</div>
+            <div class="text-secondary small">Rewatch Rate</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="card">
+          <div class="card-body p-3 text-center">
+            <div class="h3 mb-0">${stats.medianExitPercent || '—'}%</div>
+            <div class="text-secondary small">Median Exit Point</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="card">
+          <div class="card-body p-3 text-center">
+            <div class="h3 mb-0">${stats.avgTimeToCompletion || '—'}</div>
+            <div class="text-secondary small">Avg Days to Complete</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Watch distribution -->
+    ${watchDistribution ? `
+      <div class="card mb-3">
+        <div class="card-header"><h3 class="card-title">Watch Distribution</h3></div>
+        <div class="card-body">
+          <div id="chart-watch-distribution"></div>
+        </div>
+      </div>
+    ` : ''}
+
+    <!-- Members stuck -->
+    ${membersStuck.length > 0 ? `
+      <div class="card mb-3">
+        <div class="card-header">
+          <h3 class="card-title">Members Stuck on This Tutorial</h3>
+          <div class="card-actions">
+            <span class="badge bg-warning">${membersStuck.length}</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="list-group list-group-flush" id="stuck-viewers-list">
+            ${membersStuck.slice(0, 10).map(m => `
+              <a href="#" class="list-group-item list-group-item-action stuck-viewer-link" data-user-id="${m.userId}">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="fw-bold">${escapeHtml(m.name)}</div>
+                    <small class="text-secondary">${m.watchPercent}% watched · ${m.sessionCount} sessions</small>
                   </div>
+                  <span class="badge ${getStatusBadgeClass(m.activityStatus)}">${m.activityStatus || ''}</span>
                 </div>
-                <div class="admin-list-actions">
-                  <span class="admin-badge ${getStatusBadgeClass(member.activityStatus)}">${member.activityStatus}</span>
-                </div>
-              </div>
+              </a>
             `).join('')}
           </div>
         </div>
-      ` : ''}
+      </div>
+    ` : ''}
 
-      <!-- All Viewers Table -->
-      <div class="admin-panel">
-        <div class="admin-panel-header">
-          <h3>👥 All Viewers (${viewers.length})</h3>
-        </div>
-        <div class="admin-table-container">
-          <table class="admin-table">
+    <!-- All viewers -->
+    ${viewers && viewers.length > 0 ? `
+      <div class="card mb-3">
+        <div class="card-header"><h3 class="card-title">All Viewers</h3></div>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table table-hover">
             <thead>
               <tr>
                 <th>Member</th>
                 <th>Status</th>
-                <th class="admin-cell-center">Sessions</th>
-                <th class="admin-cell-center">Watch %</th>
-                <th class="admin-cell-center">Notes</th>
-                <th class="admin-cell-center">Completed</th>
+                <th class="text-end">Sessions</th>
+                <th class="text-end">Watch %</th>
+                <th class="text-end">Notes</th>
+                <th>Completed</th>
                 <th>Last Watched</th>
               </tr>
             </thead>
             <tbody id="viewers-tbody">
-              ${viewers.map(viewer => `
-                <tr class="admin-table-row clickable" data-user-id="${viewer.userId}">
-                  <td class="admin-cell-title">${viewer.name}</td>
-                  <td><span class="admin-badge ${getStatusBadgeClass(viewer.activityStatus)}">${viewer.activityStatus}</span></td>
-                  <td class="admin-cell-center">${viewer.sessionCount}</td>
-                  <td class="admin-cell-center">${viewer.watchPercent}%</td>
-                  <td class="admin-cell-center">${viewer.notesCount}</td>
-                  <td class="admin-cell-center">${viewer.completed ? '✅' : '—'}</td>
-                  <td>${viewer.lastWatchedAt ? formatDate(viewer.lastWatchedAt) : '—'}</td>
+              ${viewers.map(v => `
+                <tr class="cursor-pointer viewer-row" data-user-id="${v.userId}">
+                  <td>${escapeHtml(v.name)}</td>
+                  <td><span class="badge ${getStatusBadgeClass(v.activityStatus)}">${v.activityStatus || ''}</span></td>
+                  <td class="text-end">${v.sessionCount}</td>
+                  <td class="text-end">${v.watchPercent}%</td>
+                  <td class="text-end">${v.notesCount || 0}</td>
+                  <td>${v.completed ? '<span class="badge bg-success-lt">Yes</span>' : '<span class="badge bg-secondary-lt">No</span>'}</td>
+                  <td class="text-secondary">${formatDate(v.lastWatchedAt)}</td>
                 </tr>
               `).join('')}
             </tbody>
           </table>
         </div>
       </div>
+    ` : ''}
 
-      <!-- Recent Activity -->
-      <div class="admin-panel">
-        <div class="admin-panel-header">
-          <h3>🕐 Recent Activity (Last 30 Days)</h3>
-        </div>
-        <div class="admin-timeline">
-          ${recentActivity.slice(0, 50).map(activity => `
-            <div class="admin-timeline-item">
-              <div class="admin-timeline-icon ${activity.type}">${getActivityIcon(activity.type)}</div>
-              <div class="admin-timeline-content">
-                <div class="admin-timeline-title">
-                  <span class="admin-timeline-user clickable" data-user-id="${activity.userId}">${activity.userName}</span>
-                  ${getActivityText(activity)}
+    <!-- Recent activity -->
+    ${recentActivity && recentActivity.length > 0 ? `
+      <div class="card">
+        <div class="card-header"><h3 class="card-title">Recent Activity</h3></div>
+        <div class="card-body">
+          <div class="list-group list-group-flush">
+            ${recentActivity.map(a => `
+              <div class="list-group-item border-0 px-0 py-2">
+                <div class="d-flex align-items-center gap-2">
+                  <div>${getActivityIcon(a.type)}</div>
+                  <div class="flex-fill">
+                    <span class="fw-bold">${escapeHtml(a.userName)}</span>
+                    <span class="text-secondary">${getActivityLabel(a)}</span>
+                  </div>
+                  <small class="text-secondary text-nowrap">${formatDate(a.timestamp)}</small>
                 </div>
-                <div class="admin-timeline-meta">${formatDate(activity.timestamp)}</div>
               </div>
-            </div>
-          `).join('')}
+            `).join('')}
+          </div>
         </div>
       </div>
-    </div>
+    ` : ''}
   `;
 
-  // Add event listeners
-  document.getElementById('back-to-content')?.addEventListener('click', () => {
-    navigateToView('content-stats');
-  });
-
-  // Make member names clickable
+  // Add click handlers for member links
   container.querySelectorAll('[data-user-id]').forEach(el => {
-    el.addEventListener('click', () => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
       const userId = el.dataset.userId;
-      navigateToView('user-detail', { userId });
+      if (userId && navigateToView) {
+        navigateToView('members', { userId });
+      }
     });
   });
+
+  // Render charts after DOM is set
+  renderCompletionGauge(stats.completionRate);
+  if (watchDistribution) {
+    renderWatchDistributionChart(watchDistribution, stats.uniqueViewers);
+  }
 }
 
-/**
- * Render watch distribution bar chart
- */
-function renderWatchDistribution(distribution, totalViewers) {
-  const labels = Object.keys(distribution);
-  const values = Object.values(distribution);
+function renderCompletionGauge(completionRate) {
+  const colors = getColors();
+  const rate = completionRate || 0;
+  const gaugeColor = rate >= 70 ? colors.success : rate >= 40 ? colors.warning : colors.danger;
 
-  return labels.map((label, i) => {
-    const count = values[i];
-    const percent = totalViewers > 0 ? Math.round((count / totalViewers) * 100) : 0;
-    const barWidth = percent;
-
-    return `
-      <div class="watch-dist-row">
-        <div class="watch-dist-label">${label}</div>
-        <div class="watch-dist-bar">
-          <div class="watch-dist-fill" style="width: ${barWidth}%"></div>
-        </div>
-        <div class="watch-dist-value">${count} (${percent}%)</div>
-      </div>
-    `;
-  }).join('');
+  renderChart('chart-tutorial-completion-gauge', {
+    chart: { type: 'radialBar', height: 90, sparkline: { enabled: true } },
+    series: [Math.min(rate, 100)],
+    plotOptions: {
+      radialBar: {
+        hollow: { size: '50%' },
+        dataLabels: {
+          name: { show: false },
+          value: {
+            show: true, fontSize: '18px', fontWeight: 700,
+            formatter: () => `${rate}%`, offsetY: 5,
+          },
+        },
+        track: { background: 'rgba(255,255,255,0.08)' },
+      },
+    },
+    colors: [gaugeColor],
+  });
 }
 
-/**
- * Helper: Get completion rate color class
- */
-function getCompletionRateClass(rate) {
-  if (rate < 40) return 'rate-low';
-  if (rate < 70) return 'rate-medium';
-  return 'rate-high';
+function renderWatchDistributionChart(distribution, totalViewers) {
+  const colors = getColors();
+  const entries = Object.entries(distribution);
+  const labels = entries.map(([label]) => label);
+  const values = entries.map(([, count]) => count);
+
+  renderChart('chart-watch-distribution', {
+    chart: { type: 'bar', height: Math.max(200, entries.length * 40) },
+    series: [{ name: 'Viewers', data: values }],
+    xaxis: { categories: labels },
+    colors: [colors.primary],
+    plotOptions: {
+      bar: { horizontal: true, borderRadius: 3, barHeight: '60%' },
+    },
+    dataLabels: {
+      enabled: true,
+      formatter: (val) => {
+        const pct = totalViewers > 0 ? Math.round((val / totalViewers) * 100) : 0;
+        return `${val} (${pct}%)`;
+      },
+      style: { fontSize: '12px' },
+    },
+    tooltip: {
+      y: {
+        formatter: (val) => {
+          const pct = totalViewers > 0 ? Math.round((val / totalViewers) * 100) : 0;
+          return `${val} viewers (${pct}%)`;
+        },
+      },
+    },
+  });
 }
 
-/**
- * Helper: Get status badge class
- */
+function getCompletionColor(rate) {
+  if (rate >= 70) return 'text-success';
+  if (rate >= 40) return 'text-warning';
+  return 'text-danger';
+}
+
 function getStatusBadgeClass(status) {
-  switch (status) {
-    case 'active': return 'badge-success';
-    case 'at_risk': return 'badge-warning';
-    case 'new': return 'badge-info';
-    case 'dormant': return 'badge-danger';
+  const classes = {
+    active: 'bg-success-lt',
+    at_risk: 'bg-warning-lt',
+    new: 'bg-info-lt',
+    dormant: 'bg-danger-lt',
+  };
+  return classes[status] || 'bg-secondary-lt';
+}
+
+function getActivityIcon(type) {
+  switch (type) {
+    case 'watch': return '<span class="badge bg-blue-lt badge-sm">PLAY</span>';
+    case 'completion': return '<span class="badge bg-green-lt badge-sm">DONE</span>';
+    case 'note': return '<span class="badge bg-purple-lt badge-sm">NOTE</span>';
+    default: return '<span class="badge bg-secondary-lt badge-sm">EVENT</span>';
+  }
+}
+
+function getActivityLabel(activity) {
+  switch (activity.type) {
+    case 'watch': return activity.details?.completed ? 'completed' : 'watched';
+    case 'completion': return 'completed';
+    case 'note': return 'added notes';
     default: return '';
   }
 }
 
-/**
- * Helper: Get activity icon
- */
-function getActivityIcon(type) {
-  switch (type) {
-    case 'watch': return '▶️';
-    case 'completion': return '✅';
-    case 'note': return '📝';
-    default: return '•';
-  }
-}
-
-/**
- * Helper: Get activity text
- */
-function getActivityText(activity) {
-  switch (activity.type) {
-    case 'watch':
-      return activity.details.completed
-        ? 'completed the tutorial'
-        : `watched for ${formatDuration(activity.details.watchSeconds)}`;
-    case 'completion':
-      return 'completed the tutorial';
-    case 'note':
-      return `added a note: "${activity.details.content}"`;
-    default:
-      return 'had activity';
-  }
-}
-
-/**
- * Helper: Format date
- */
 function formatDate(dateStr) {
-  const date = new Date(dateStr);
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
   const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const diffDays = Math.floor((now - d) / 86400000);
 
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return `${days} days ago`;
-  if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
-
-  return date.toLocaleDateString();
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-/**
- * Helper: Format duration (seconds to MM:SS)
- */
-function formatDuration(seconds) {
-  if (!seconds) return '0:00';
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }

@@ -1,52 +1,38 @@
 /**
- * @fileoverview Admin Dashboard - User List Section
- * Phase 8: Added churn risk scoring display
+ * @fileoverview Admin Dashboard - User List (Tabler)
  */
 
 import { debug } from '../../config.js';
 import { exportToCSV } from './export.js';
-
 let usersData = [];
-let sortColumn = 'name';
-let sortDirection = 'asc';
+let onlineNowData = 0;
+let sortColumn = 'lastActivity';
+let sortDirection = 'desc';
+let activeFilter = 'active';
 
-/**
- * Initialize user list section
- */
 export function initUserList() {
-  // Setup search
   const searchInput = document.getElementById('user-search');
   if (searchInput) {
-    searchInput.addEventListener('input', debounce(() => {
-      filterAndRenderUsers();
-    }, 300));
-  }
-
-  // Setup status filter
-  const statusFilter = document.getElementById('user-filter-status');
-  if (statusFilter) {
-    statusFilter.addEventListener('change', () => {
-      filterAndRenderUsers();
+    let debounce;
+    searchInput.addEventListener('input', () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => filterAndRenderUsers(), 300);
     });
   }
 
-  // Setup risk filter
-  const riskFilter = document.getElementById('user-filter-risk');
-  if (riskFilter) {
-    riskFilter.addEventListener('change', () => {
-      filterAndRenderUsers();
-    });
-  }
-
-  // Setup export button
   const exportBtn = document.getElementById('export-users-btn');
   if (exportBtn) {
-    exportBtn.addEventListener('click', () => {
-      exportUsersCSV();
-    });
+    exportBtn.addEventListener('click', () => exportUsersCSV());
   }
 
-  // Setup table sorting
+  document.querySelectorAll('[data-member-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeFilter = btn.dataset.memberFilter;
+      document.querySelectorAll('[data-member-filter]').forEach(b => b.classList.toggle('active', b === btn));
+      filterAndRenderUsers();
+    });
+  });
+
   const tableHeaders = document.querySelectorAll('#users-table th[data-sort]');
   tableHeaders.forEach(th => {
     th.addEventListener('click', () => {
@@ -55,8 +41,7 @@ export function initUserList() {
         sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
       } else {
         sortColumn = column;
-        // Default to descending for risk score
-        sortDirection = column === 'riskScore' ? 'desc' : 'desc';
+        sortDirection = column === 'name' || column === 'location' ? 'asc' : 'desc';
       }
       filterAndRenderUsers();
       updateSortIndicators();
@@ -64,27 +49,16 @@ export function initUserList() {
   });
 }
 
-/**
- * Load user list data from API
- * @param {Function} getAdminApiUrl - URL builder function
- * @param {Function} getAuthHeaders - Auth headers function
- * @param {boolean} forceRefresh - Force refresh even if data is cached
- */
 export async function loadUserListData(getAdminApiUrl, getAuthHeaders, forceRefresh = false) {
-  // Store for later use
-  window._adminApiUrl = getAdminApiUrl;
-  window._adminAuthHeaders = getAuthHeaders;
-
-  // If we already have data and not forcing refresh, just re-render
   if (usersData.length > 0 && !forceRefresh) {
-    debug.log('📊 Using cached users data');
     filterAndRenderUsers();
+    renderMembersKPIs(usersData);
     return;
   }
 
   const tbody = document.getElementById('users-table-body');
   if (tbody) {
-    tbody.innerHTML = '<tr><td colspan="7" class="admin-loading">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-secondary">Loading...</td></tr>';
   }
 
   try {
@@ -92,70 +66,76 @@ export async function loadUserListData(getAdminApiUrl, getAuthHeaders, forceRefr
       method: 'GET',
       headers: getAuthHeaders(),
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const data = await response.json();
     usersData = data.users || [];
+    onlineNowData = data.onlineNow || 0;
     filterAndRenderUsers();
-    updateSortIndicators();
-
+    renderMembersKPIs(usersData);
   } catch (err) {
-    debug.error('❌ Failed to load users:', err);
+    debug.error('Failed to load users:', err);
     if (tbody) {
-      tbody.innerHTML = '<tr><td colspan="7" class="admin-error">Failed to load users</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger">Failed to load members</td></tr>';
     }
   }
 }
 
-/**
- * Filter and render users based on search/filter/sort
- */
 function filterAndRenderUsers() {
-  const searchTerm = document.getElementById('user-search')?.value.toLowerCase() || '';
-  const statusFilter = document.getElementById('user-filter-status')?.value || '';
-  const riskFilter = document.getElementById('user-filter-risk')?.value || '';
+  const searchTerm = (document.getElementById('user-search')?.value || '').toLowerCase();
 
   let filtered = usersData.filter(user => {
-    // Search filter
-    const name = `${user.firstName || ''} ${user.lastName || ''}`.toLowerCase();
-    const email = (user.email || '').toLowerCase();
-    const matchesSearch = !searchTerm || name.includes(searchTerm) || email.includes(searchTerm);
-
-    // Status filter
-    const matchesStatus = !statusFilter || user.status === statusFilter;
-
-    // Risk filter
-    const matchesRisk = !riskFilter || user.riskTier === riskFilter;
-
-    return matchesSearch && matchesStatus && matchesRisk;
+    const nameMatch = `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchTerm);
+    const emailMatch = (user.email || '').toLowerCase().includes(searchTerm);
+    const locationMatch = `${user.city || ''} ${user.country || ''}`.toLowerCase().includes(searchTerm);
+    if (!(nameMatch || emailMatch || locationMatch)) return false;
+    if (activeFilter === 'active') return user.subscriptionStatus === 'active';
+    if (activeFilter === 'cancelling') return user.subscriptionStatus === 'cancelling';
+    if (activeFilter === 'past_due') return user.subscriptionStatus === 'past_due';
+    if (activeFilter === 'expired') return user.subscriptionStatus === 'expired';
+    return user.subscriptionStatus !== 'expired'; // All excludes expired
   });
 
-  // Sort
   filtered.sort((a, b) => {
-    let aVal = a[sortColumn];
-    let bVal = b[sortColumn];
+    let aVal, bVal;
 
-    // Handle name sorting
     if (sortColumn === 'name') {
-      aVal = `${a.firstName || ''} ${a.lastName || ''}`.toLowerCase();
-      bVal = `${b.firstName || ''} ${b.lastName || ''}`.toLowerCase();
+      aVal = `${a.firstName} ${a.lastName}`.toLowerCase();
+      bVal = `${b.firstName} ${b.lastName}`.toLowerCase();
+      return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
     }
 
-    // Handle dates
+    if (sortColumn === 'location') {
+      aVal = (a.city || a.country || '').toLowerCase();
+      bVal = (b.city || b.country || '').toLowerCase();
+      return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    }
+
+    if (sortColumn === 'subscriptionStatus') {
+      aVal = getSubscriptionSortKey(a);
+      bVal = getSubscriptionSortKey(b);
+      return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    }
+
     if (sortColumn === 'joinedAt' || sortColumn === 'lastActivity') {
-      aVal = aVal ? new Date(aVal).getTime() : 0;
-      bVal = bVal ? new Date(bVal).getTime() : 0;
+      if (sortColumn === 'lastActivity') {
+        if (a.isOnline && !b.isOnline) return sortDirection === 'desc' ? -1 : 1;
+        if (!a.isOnline && b.isOnline) return sortDirection === 'desc' ? 1 : -1;
+      }
+      aVal = new Date(a[sortColumn] || 0).getTime();
+      bVal = new Date(b[sortColumn] || 0).getTime();
+    } else if (sortColumn === 'totalWatchSeconds') {
+      aVal = a.totalWatchSeconds || 0;
+      bVal = b.totalWatchSeconds || 0;
+    } else {
+      aVal = a[sortColumn];
+      bVal = b[sortColumn];
     }
 
-    // Handle numbers
     if (typeof aVal === 'number' && typeof bVal === 'number') {
       return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
     }
 
-    // Handle strings
     aVal = String(aVal || '');
     bVal = String(bVal || '');
     return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
@@ -164,57 +144,106 @@ function filterAndRenderUsers() {
   renderUsers(filtered);
 }
 
-/**
- * Render users table
- */
 function renderUsers(users) {
   const tbody = document.getElementById('users-table-body');
   if (!tbody) return;
 
   if (users.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="admin-empty">No members found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-secondary">No members found</td></tr>';
     return;
   }
 
-  tbody.innerHTML = users.map(user => `
-    <tr class="admin-table-row" data-user-id="${user.id}">
-      <td class="admin-cell-name">
-        ${user.firstName || ''} ${user.lastName || ''}
-        ${formatSubscriptionBadge(user)}
-      </td>
-      <td class="admin-cell-email">${user.email}</td>
-      <td class="admin-cell-date">${formatDate(user.joinedAt)}</td>
-      <td class="admin-cell-date">${user.lastActivity ? formatDate(user.lastActivity) : 'Never'}</td>
-      <td class="admin-cell-progress">
-        <div>
-          <div class="admin-progress-bar">
-            <div class="admin-progress-fill" style="width: ${user.progressPercent}%"></div>
+  tbody.innerHTML = users.map((user, i) => `
+    <tr class="cursor-pointer" data-user-id="${user.id}">
+      <td class="text-secondary text-center">${i + 1}</td>
+      <td class="text-secondary">${user.isOnline ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#2fb344;margin-right:6px;vertical-align:middle;flex-shrink:0"></span>' : ''}${user.firstName || ''} ${user.lastName || ''}</td>
+      <td class="text-secondary">${user.countryFlag ? `${user.countryFlag} ${[user.city, user.country].filter(Boolean).join(', ')}` : '—'}</td>
+      <td class="text-center">${formatSubscriptionBadge(user)}</td>
+      <td class="text-center text-secondary">${formatDate(user.joinedAt)}</td>
+      <td class="text-center text-secondary">${user.isOnline ? 'Now' : user.lastActivity ? formatTimeAgo(user.lastActivity) : 'Never'}</td>
+      <td class="text-center">
+        <div class="d-flex align-items-center justify-content-center gap-1">
+          <div class="progress progress-sm" style="width:80px;">
+            <div class="progress-bar bg-primary" style="width:${user.progressPercent}%"></div>
           </div>
-          <span>${user.progressPercent}%</span>
+          <small class="text-secondary" style="min-width:2.5em;text-align:center;display:inline-block">${user.progressPercent}%</small>
         </div>
       </td>
-      <td class="admin-cell-time">${user.totalWatchTime}</td>
-      <td class="admin-cell-status">${formatStatus(user.status)}</td>
-      <td class="admin-cell-risk">${formatRiskBadge(user)}</td>
+      <td class="text-center text-secondary">${user.totalWatchTime || '—'}</td>
+      <td class="text-center">${formatStatusBadge(user.status, user.lastActivity, user.isOnline, user.totalWatchSeconds)}</td>
     </tr>
   `).join('');
 
-  // Add click handlers for row navigation
-  tbody.querySelectorAll('.admin-table-row').forEach(row => {
+  // Click handlers
+  tbody.querySelectorAll('[data-user-id]').forEach(row => {
     row.addEventListener('click', () => {
       const userId = row.dataset.userId;
-      if (userId && window.HOTLINE?.admin?.navigateToView) {
-        // Find the user data to pass along for instant display
-        const user = users.find(u => u.id === userId);
-        window.HOTLINE.admin.navigateToView('members', { userId, preloadUser: user });
-      }
+      const user = usersData.find(u => u.id === userId);
+      window.HOTLINE?.admin?.navigateToView?.('members', { userId, preloadUser: user });
     });
   });
 }
 
-/**
- * Update sort indicators on table headers
- */
+function getInitials(firstName, lastName) {
+  const f = (firstName || '')[0] || '';
+  const l = (lastName || '')[0] || '';
+  return (f + l).toUpperCase() || '?';
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatTimeAgo(dateStr) {
+  if (!dateStr) return '';
+  const now = new Date();
+  const d = new Date(dateStr);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const activityDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const days = Math.round((today - activityDay) / (24 * 60 * 60 * 1000));
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  return `${days} days ago`;
+}
+
+function getSubscriptionSortKey(user) {
+  if (user.subscriptionStatus === 'past_due') return 'past_due';
+  if (user.subscriptionStatus === 'cancelling') return 'cancelling';
+  if (user.billingInterval === 'yearly') return 'annual';
+  return 'monthly';
+}
+
+function formatSubscriptionBadge(user) {
+  if (user.subscriptionStatus === 'past_due') {
+    return '<span class="badge bg-danger-lt">Past Due</span>';
+  }
+  if (user.subscriptionStatus === 'cancelling') {
+    return '<span class="badge bg-warning-lt">Cancelling</span>';
+  }
+  if (user.subscriptionStatus === 'expired') {
+    return '<span class="badge bg-secondary-lt">Expired</span>';
+  }
+  if (user.billingInterval === 'yearly') {
+    return '<span class="badge bg-purple-lt">Annual</span>';
+  }
+  return '<span class="badge bg-blue-lt">Monthly</span>';
+}
+
+function formatStatusBadge(status, lastActivity, isOnline, totalWatchSeconds) {
+  if (!lastActivity && !isOnline && !totalWatchSeconds) {
+    return '<span class="badge bg-secondary-lt">Pending</span>';
+  }
+  const config = {
+    active: { label: 'Active', cls: 'bg-success-lt' },
+    at_risk: { label: 'At Risk', cls: 'bg-orange-lt' },
+    dormant: { label: 'Dormant', cls: 'bg-danger-lt' },
+  };
+  const c = config[status] || { label: 'Pending', cls: 'bg-secondary-lt' };
+  return `<span class="badge ${c.cls}">${c.label}</span>`;
+}
+
 function updateSortIndicators() {
   document.querySelectorAll('#users-table th[data-sort]').forEach(th => {
     th.classList.remove('sort-asc', 'sort-desc');
@@ -224,109 +253,41 @@ function updateSortIndicators() {
   });
 }
 
-/**
- * Export users to CSV
- */
 function exportUsersCSV() {
-  const headers = ['Name', 'Email', 'Joined', 'Last Active', 'Completed', 'Watch Time', 'Status', 'Risk Score', 'Risk Tier', 'Risk Factors'];
+  const headers = ['Name', 'Email', 'Location', 'Subscription', 'Joined', 'Last Active', 'Progress %', 'Watch Time', 'Status'];
   const rows = usersData.map(user => [
     `${user.firstName || ''} ${user.lastName || ''}`.trim(),
     user.email,
+    [user.city, user.country].filter(Boolean).join(', ') || '',
+    user.subscriptionStatus === 'active' ? (user.billingInterval === 'yearly' ? 'Annual' : 'Monthly') : (user.subscriptionStatus || 'Free'),
     formatDate(user.joinedAt),
     user.lastActivity ? formatDate(user.lastActivity) : 'Never',
-    user.completedTutorials,
-    user.totalWatchTime,
-    formatStatus(user.status),
-    user.riskScore || 0,
-    user.riskTier || 'healthy',
-    (user.riskFactors || []).join('; '),
+    user.progressPercent,
+    user.totalWatchTime || '0m',
+    user.status,
   ]);
-
   exportToCSV('members', headers, rows);
 }
 
-/**
- * Format date for display
- */
-function formatDate(dateStr) {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
+// ─── Members KPI Cards ──────────────────────────────────
 
-/**
- * Format status for display
- */
-function formatStatus(status) {
-  const labels = {
-    active: 'Active',
-    at_risk: 'At Risk',
-    dormant: 'Dormant',
-    new: 'New',
-  };
-  return labels[status] || status;
-}
+function renderMembersKPIs(users) {
+  const activeThisWeek = users.filter(u => u.status === 'active').length;
+  const atRisk = users.filter(u => u.status === 'at_risk').length;
+  const dormant = users.filter(u => u.status === 'dormant').length;
+  const neverLoggedIn = users.filter(u => !u.lastActivity).length;
 
-/**
- * Format subscription badge for display
- */
-function formatSubscriptionBadge(user) {
-  const status = user.subscriptionStatus;
-  if (!status || status === 'none') return '';
+  const cancelling = users.filter(u => u.subscriptionStatus === 'cancelling').length;
+  const pastDue = users.filter(u => u.subscriptionStatus === 'past_due').length;
+  const expired = users.filter(u => u.subscriptionStatus === 'expired').length;
 
-  const badges = {
-    active: {
-      label: user.billingInterval === 'yearly' ? 'Yearly' : 'Monthly',
-      class: 'sub-active',
-    },
-    past_due: {
-      label: 'Past Due',
-      class: 'sub-past-due',
-    },
-    cancelled: {
-      label: 'Cancelled',
-      class: 'sub-cancelled',
-    },
-  };
-
-  const badge = badges[status];
-  if (!badge) return '';
-
-  return `<span class="admin-sub-badge ${badge.class}">${badge.label}</span>`;
-}
-
-/**
- * Format risk badge for display (Phase 8)
- */
-function formatRiskBadge(user) {
-  const tier = user.riskTier || 'healthy';
-  const score = user.riskScore || 0;
-  const factors = user.riskFactors || [];
-
-  const tierConfig = {
-    healthy: { label: 'Healthy', class: 'risk-healthy' },
-    watch: { label: 'Watch', class: 'risk-watch' },
-    at_risk: { label: 'At Risk', class: 'risk-at-risk' },
-    critical: { label: 'Critical', class: 'risk-critical' },
-  };
-
-  const config = tierConfig[tier] || tierConfig.healthy;
-  const tooltip = factors.length > 0 ? factors.join('\n') : 'No risk factors';
-
-  return `<span class="admin-risk-badge ${config.class}" title="${tooltip}">${config.label} (${score})</span>`;
-}
-
-/**
- * Simple debounce utility
- */
-function debounce(fn, delay) {
-  let timeout;
-  return (...args) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => fn(...args), delay);
-  };
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('members-kpi-total', users.filter(u => u.subscriptionStatus === 'active').length);
+  set('members-kpi-cancelling', cancelling);
+  set('members-kpi-pastdue', pastDue);
+  set('members-kpi-expired', expired);
+  set('members-kpi-active', activeThisWeek);
+  set('members-kpi-atrisk', atRisk);
+  set('members-kpi-dormant', dormant);
+  set('members-kpi-never', neverLoggedIn);
 }

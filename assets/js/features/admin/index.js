@@ -1,51 +1,47 @@
 /**
- * @fileoverview Admin Dashboard - Main entry point
+ * @fileoverview Admin Dashboard - Main entry point (v2 - Tabler)
  *
+ * 5 pages: Dashboard, Members, Live, Content, Projections.
  * Dynamically loads admin UI after verifying admin access.
- * Admin HTML is never in the page source - only loaded for verified admins.
  */
 
 import { debug } from '../../config.js';
 import { getAdminTemplate } from './admin-template.js';
-import { initOverview, loadOverviewData } from './overview.js';
+import { initOverview, loadOverviewData, loadProjectionsData } from './overview.js';
 import { initUserList, loadUserListData } from './user-list.js';
 import { initUserDetail, loadUserDetailData } from './user-detail.js';
 import { initContentStats, loadContentStatsData } from './content-stats.js';
-import { initLiveStats, startLiveStats, stopLiveStats } from './live-stats.js';
 import { initAnalytics, loadAnalyticsData } from './analytics.js';
-import { initProjections, loadProjectionsData } from './projections.js';
+import { initLiveStats, startLiveStats, stopLiveStats, startGlobalRealtime } from './live-stats.js';
+import { destroyAllCharts } from './charts.js';
 
-// Lazy load tutorial detail to avoid initial bundle issues
+// Lazy load tutorial detail
 let loadTutorialDetail = null;
 
 /** Admin state */
 let isAdminVerified = false;
 let isAdminLoaded = false;
-let currentView = 'overview';
-let currentUserName = ''; // Store current user name for breadcrumb
+let currentView = 'dashboard';
+let currentUserName = '';
 
 /**
- * Get the Supabase function URL
+ * Get Supabase function URL
  */
 function getAdminApiUrl(endpoint) {
   const supabaseUrl = window.HOTLINE?.supabase?.supabaseUrl;
   if (!supabaseUrl) {
-    // Fallback to config
     return `https://iqvntlifrvkdqrrcxwsf.supabase.co/functions/v1/admin-stats/${endpoint}`;
   }
   return `${supabaseUrl}/functions/v1/admin-stats/${endpoint}`;
 }
 
-/**
- * Cached auth token
- */
+/** Cached auth token */
 let cachedAuthToken = null;
 
 /**
- * Get auth headers for admin API requests
+ * Get auth headers for API requests
  */
 function getAuthHeaders() {
-  // Use cached token if available
   if (cachedAuthToken) {
     return {
       'Content-Type': 'application/json',
@@ -53,7 +49,6 @@ function getAuthHeaders() {
     };
   }
 
-  // Try to get from localStorage (Supabase stores session here)
   const storageKey = 'sb-iqvntlifrvkdqrrcxwsf-auth-token';
   const storedSession = localStorage.getItem(storageKey);
 
@@ -63,14 +58,11 @@ function getAuthHeaders() {
       const parsed = JSON.parse(storedSession);
       token = parsed.access_token;
     } catch (e) {
-      // Not JSON, use as-is
       token = storedSession;
     }
   }
 
-  if (token) {
-    cachedAuthToken = token;
-  }
+  if (token) cachedAuthToken = token;
 
   return {
     'Content-Type': 'application/json',
@@ -79,7 +71,7 @@ function getAuthHeaders() {
 }
 
 /**
- * Refresh auth token from Supabase client
+ * Refresh auth token from Supabase
  */
 async function refreshAuthToken() {
   const supabase = window.HOTLINE?.supabase;
@@ -88,178 +80,128 @@ async function refreshAuthToken() {
       const { data } = await supabase.auth.getSession();
       if (data?.session?.access_token) {
         cachedAuthToken = data.session.access_token;
-        debug.log('🔑 Auth token refreshed');
       }
     } catch (e) {
-      debug.warn('⚠️ Failed to refresh auth token:', e);
+      debug.warn('Failed to refresh auth token:', e);
     }
   }
 }
 
 /**
- * Verify if current user is an admin
+ * Verify if current user is admin
  */
 export async function verifyAdminAccess() {
   try {
-    // Refresh auth token from Supabase client first
     await refreshAuthToken();
-
     const response = await fetch(getAdminApiUrl('verify'), {
       method: 'GET',
       headers: getAuthHeaders(),
     });
-
     const data = await response.json();
     isAdminVerified = data.isAdmin === true;
-
-    debug.log(`🔐 Admin verification: ${isAdminVerified ? 'GRANTED' : 'DENIED'}`);
     return isAdminVerified;
   } catch (err) {
-    debug.error('❌ Admin verification failed:', err);
+    debug.error('verifyAdminAccess failed:', err);
     return false;
   }
 }
 
 /**
- * Preload all admin data in parallel for faster navigation
+ * Refresh all data
+ */
+async function refreshAllData() {
+  try {
+    await Promise.all([
+      loadOverviewData(getAdminApiUrl, getAuthHeaders, true).catch(err => debug.warn('Refresh overview failed:', err)),
+      loadUserListData(getAdminApiUrl, getAuthHeaders, true).catch(err => debug.warn('Refresh users failed:', err)),
+      loadContentStatsData(getAdminApiUrl, getAuthHeaders, true).catch(err => debug.warn('Refresh content failed:', err)),
+      loadProjectionsData(getAdminApiUrl, getAuthHeaders, true).catch(err => debug.warn('Refresh projections failed:', err)),
+    ]);
+  } catch (err) {
+    debug.error('Error refreshing data:', err);
+  }
+}
+
+/**
+ * Preload all data in parallel
  */
 async function preloadAllData() {
-  debug.log('🚀 Preloading all admin data...');
-
   try {
-    // Load all data in parallel
+    // Projections excluded — loads on-demand only, and is sometimes very slow
     await Promise.all([
-      loadOverviewData(getAdminApiUrl, getAuthHeaders).catch(err => {
-        debug.warn('⚠️ Failed to preload overview:', err);
-      }),
-      loadUserListData(getAdminApiUrl, getAuthHeaders).catch(err => {
-        debug.warn('⚠️ Failed to preload users:', err);
-      }),
-      loadContentStatsData(getAdminApiUrl, getAuthHeaders).catch(err => {
-        debug.warn('⚠️ Failed to preload content:', err);
-      }),
-      loadAnalyticsData(getAdminApiUrl, getAuthHeaders).catch(err => {
-        debug.warn('⚠️ Failed to preload analytics:', err);
-      }),
-      loadProjectionsData(getAdminApiUrl, getAuthHeaders).catch(err => {
-        debug.warn('⚠️ Failed to preload projections:', err);
-      }),
+      loadOverviewData(getAdminApiUrl, getAuthHeaders).catch(err => debug.warn('Preload overview failed:', err)),
+      loadUserListData(getAdminApiUrl, getAuthHeaders).catch(err => debug.warn('Preload users failed:', err)),
+      loadContentStatsData(getAdminApiUrl, getAuthHeaders).catch(err => debug.warn('Preload content failed:', err)),
     ]);
-
-    debug.log('✅ All admin data preloaded');
   } catch (err) {
-    debug.error('❌ Error during data preload:', err);
+    debug.error('Error preloading data:', err);
   }
 }
 
 /**
  * Load admin dashboard
- * Called when navigating to /admin routes
  */
-export async function loadAdminDashboard(view = 'overview', params = {}) {
-  // Verify admin access first
+export async function loadAdminDashboard(view, params = {}) {
   if (!isAdminVerified) {
     const hasAccess = await verifyAdminAccess();
     if (!hasAccess) {
-      debug.log('🚫 Not an admin, redirecting to home');
       window.location.href = '/';
       return;
     }
   }
 
-  // Inject admin HTML if not already loaded
   if (!isAdminLoaded) {
     injectAdminUI();
     isAdminLoaded = true;
-
-    // Preload all data in the background after UI is ready
     preloadAllData();
   }
 
-  // Show admin overlay
-  const adminOverlay = document.getElementById('admin-overlay');
-  if (adminOverlay) {
-    adminOverlay.style.display = 'block';
-    adminOverlay.classList.add('visible');
+  // Auto-detect view from URL if not explicitly provided
+  if (!view) {
+    const parsed = parseAdminUrl();
+    view = parsed?.view || 'dashboard';
+    params = parsed?.params || {};
   }
 
-  // Hide other overlays
-  document.querySelectorAll('.hotline-overlay:not(#admin-overlay)').forEach(el => {
-    el.style.display = 'none';
-    el.classList.remove('visible');
-  });
-  document.getElementById('hotline-dashboard-view')?.style.setProperty('display', 'none');
-  document.getElementById('trn-dashboard-view')?.style.setProperty('display', 'none');
-
-  // Navigate to specific view
   await navigateToView(view, params);
-}
-
-/**
- * Load admin CSS dynamically
- */
-function loadAdminCSS() {
-  if (document.getElementById('admin-css')) {
-    return; // Already loaded
-  }
-
-  const link = document.createElement('link');
-  link.id = 'admin-css';
-  link.rel = 'stylesheet';
-  link.href = '/assets/css/admin.css';
-  document.head.appendChild(link);
-
-  debug.log('📦 Admin CSS loaded');
 }
 
 /**
  * Inject admin UI into the DOM
  */
 function injectAdminUI() {
-  // Check if already exists
-  if (document.getElementById('admin-overlay')) {
-    return;
-  }
+  const container = document.getElementById('admin-container');
+  if (!container) return;
 
-  // Load admin CSS first
-  loadAdminCSS();
-
-  // Create admin overlay
-  const container = document.createElement('div');
-  container.id = 'admin-overlay';
-  container.className = 'hotline-overlay admin-overlay';
   container.innerHTML = getAdminTemplate();
-  document.body.appendChild(container);
 
-  // Initialize all sections
+  // Initialize all section modules
   initOverview();
   initLiveStats();
   initUserList();
   initUserDetail();
   initContentStats();
   initAnalytics();
-  initProjections();
 
   // Setup navigation
   setupNavigation();
 
-  // Setup back button (handles breadcrumb navigation)
+  // Back button
   const backBtn = container.querySelector('#admin-back-btn');
   if (backBtn) {
-    backBtn.addEventListener('click', () => {
+    backBtn.addEventListener('click', (e) => {
+      e.preventDefault();
       handleBackNavigation();
     });
   }
 
-  // Setup sign-out button
+  // Sign out
   const signOutBtn = container.querySelector('#admin-signout-btn');
   if (signOutBtn) {
     signOutBtn.addEventListener('click', async () => {
       try {
         const supabase = window.HOTLINE?.supabase;
-        if (supabase) {
-          await supabase.auth.signOut();
-        }
+        if (supabase) await supabase.auth.signOut();
         window.location.href = '/';
       } catch (error) {
         debug.error('Sign out error:', error);
@@ -267,19 +209,30 @@ function injectAdminUI() {
     });
   }
 
-  debug.log('✅ Admin UI injected');
+
+  // Refresh button
+  const refreshBtn = container.querySelector('#admin-refresh-btn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => window.location.reload());
+  }
+
+  // Re-initialize Bootstrap components (Tabler JS inits on DOMContentLoaded,
+  // but we inject after that, so collapse/dropdown won't work without this)
+  const sidebarCollapse = document.getElementById('sidebar-menu');
+  if (sidebarCollapse && window.bootstrap) {
+    new window.bootstrap.Collapse(sidebarCollapse, { toggle: false });
+  }
+
+  debug.log('Admin UI injected');
 }
 
-// Track if popstate listener is already added
 let popstateListenerAdded = false;
 
 /**
- * Setup admin navigation
+ * Setup navigation
  */
 function setupNavigation() {
-  const navLinks = document.querySelectorAll('.admin-nav-link');
-
-  navLinks.forEach(link => {
+  document.querySelectorAll('.admin-nav-link').forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       const view = link.dataset.view;
@@ -290,19 +243,11 @@ function setupNavigation() {
     });
   });
 
-  // Handle browser back/forward navigation (only add once)
   if (!popstateListenerAdded) {
-    window.addEventListener('popstate', async (event) => {
-      // Check if we're on an admin URL
+    window.addEventListener('popstate', async () => {
       const parsed = parseAdminUrl();
-
       if (parsed) {
-        // We're navigating within admin - restore that view
-        event.preventDefault();
         await navigateToView(parsed.view, parsed.params);
-      } else if (isAdminLoaded && document.getElementById('admin-overlay')?.classList.contains('visible')) {
-        // We navigated away from admin - close it
-        closeAdminDashboard();
       }
     });
     popstateListenerAdded = true;
@@ -310,189 +255,125 @@ function setupNavigation() {
 }
 
 /**
- * Handle back button navigation (breadcrumb style)
+ * Handle back navigation
  */
 function handleBackNavigation() {
   switch (currentView) {
-    case 'overview':
-      // At root - open members site in new window
-      window.open('https://members.emergencypianohotline.com', '_blank');
-      break;
-    case 'live':
-    case 'members':
-    case 'content':
-    case 'analytics':
-    case 'projections':
-      // Go back to overview
-      navigateToView('overview');
-      updateUrl('overview');
-      break;
     case 'user-detail':
-      // Go back to members list
       navigateToView('members');
       updateUrl('members');
       break;
+    case 'tutorial-detail':
+      navigateToView('tutorials');
+      updateUrl('tutorials');
+      break;
     default:
-      closeAdminDashboard();
+      navigateToView('dashboard');
+      updateUrl('dashboard');
   }
 }
 
 /**
- * Update header based on current view (breadcrumb style)
+ * Update header
  */
-function updateHeader(view, userName = '') {
+function updateHeader(title, showBack = false, backLabel = 'Back') {
   const titleEl = document.getElementById('admin-page-title');
   const backBtn = document.getElementById('admin-back-btn');
-  const nav = document.querySelector('.admin-nav');
-  const livePill = nav?.querySelector('[data-view="live"]');
-  const membersPill = nav?.querySelector('[data-view="members"]');
-  const tutorialsPill = nav?.querySelector('[data-view="content"]');
-  const analyticsPill = nav?.querySelector('[data-view="analytics"]');
-  const projectionsPill = nav?.querySelector('[data-view="projections"]');
+  const backLabelEl = document.getElementById('admin-back-label');
 
-  if (!titleEl || !backBtn) return;
+  if (titleEl) titleEl.textContent = title;
 
-  // Reset all pills visibility
-  if (livePill) livePill.style.display = '';
-  if (membersPill) membersPill.style.display = '';
-  if (tutorialsPill) tutorialsPill.style.display = '';
-  if (analyticsPill) analyticsPill.style.display = '';
-  if (projectionsPill) projectionsPill.style.display = '';
-
-  switch (view) {
-    case 'overview':
-      titleEl.textContent = 'Admin';
-      backBtn.textContent = 'EMERGENCY PIANO HOTLINE';
-      if (nav) nav.style.display = 'flex';
-      break;
-    case 'live':
-      titleEl.textContent = 'Live';
-      backBtn.textContent = 'ADMIN';
-      if (nav) nav.style.display = 'flex';
-      if (livePill) livePill.style.display = 'none'; // Hide Live pill on Live page
-      break;
-    case 'members':
-      titleEl.textContent = 'Members';
-      backBtn.textContent = 'ADMIN';
-      if (nav) nav.style.display = 'flex';
-      if (membersPill) membersPill.style.display = 'none'; // Hide Members pill on Members page
-      break;
-    case 'content':
-      titleEl.textContent = 'Tutorials';
-      backBtn.textContent = 'ADMIN';
-      if (nav) nav.style.display = 'flex';
-      if (tutorialsPill) tutorialsPill.style.display = 'none'; // Hide Tutorials pill on Tutorials page
-      break;
-    case 'analytics':
-      titleEl.textContent = 'Analytics';
-      backBtn.textContent = 'ADMIN';
-      if (nav) nav.style.display = 'flex';
-      if (analyticsPill) analyticsPill.style.display = 'none'; // Hide Analytics pill on Analytics page
-      break;
-    case 'projections':
-      titleEl.textContent = 'Projections';
-      backBtn.textContent = 'ADMIN';
-      if (nav) nav.style.display = 'flex';
-      if (projectionsPill) projectionsPill.style.display = 'none'; // Hide Projections pill on Projections page
-      break;
-    case 'user-detail':
-      titleEl.textContent = userName || 'Member Details';
-      backBtn.textContent = 'MEMBERS';
-      if (nav) nav.style.display = 'none'; // Hide nav pills on user detail
-      break;
+  if (backBtn) {
+    if (showBack) {
+      backBtn.classList.remove('d-none');
+      if (backLabelEl) backLabelEl.textContent = backLabel;
+    } else {
+      backBtn.classList.add('d-none');
+    }
   }
 }
 
 /**
- * Navigate to a specific view
+ * Navigate to a view
  */
 async function navigateToView(view, params = {}) {
-  debug.log(`📊 Admin navigateToView: ${view}`, params);
+  debug.log('[ADMIN] navigateToView:', view, params);
+  destroyAllCharts();
   currentView = view;
 
-  // Update active nav
+  // Update sidebar active state
   document.querySelectorAll('.admin-nav-link').forEach(link => {
-    link.classList.toggle('active', link.dataset.view === view);
+    const linkView = link.dataset.view;
+    // Highlight Members for user-detail, Content for tutorial-detail
+    const isActive = linkView === view ||
+      (linkView === 'members' && view === 'user-detail') ||
+      (linkView === 'tutorials' && (view === 'tutorial-detail' || view === 'content-stats'));
+    link.classList.toggle('active', isActive);
   });
 
   // Hide all sections
-  document.querySelectorAll('.admin-section').forEach(section => {
-    section.classList.remove('active');
-  });
+  document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
 
-  // Show target section
-  const targetSection = document.getElementById(`admin-${view}`);
-  if (targetSection) {
-    targetSection.classList.add('active');
-  }
-
-  // Stop live stats if navigating away from live view
-  if (view !== 'live') {
+  // Stop live stats when leaving activity view
+  if (view !== 'activity') {
     stopLiveStats();
   }
 
-  // Load data for the view (uses cache if available)
   switch (view) {
-    case 'overview':
-      updateHeader('overview');
-      debug.log('📊 Loading overview data...');
-      await loadOverviewData(getAdminApiUrl, getAuthHeaders, false); // Don't force refresh
-      debug.log('📊 Overview data loaded');
+    case 'dashboard': {
+      document.getElementById('admin-dashboard')?.classList.add('active');
+      updateHeader('Dashboard');
+      await loadOverviewData(getAdminApiUrl, getAuthHeaders, false);
       break;
-    case 'live':
-      updateHeader('live');
-      debug.log('📡 Starting live stats...');
+    }
+
+    case 'activity': {
+      document.getElementById('admin-activity')?.classList.add('active');
+      updateHeader('Activity');
       await startLiveStats(getAdminApiUrl, getAuthHeaders);
       break;
-    case 'members':
+    }
+
+    case 'members': {
       if (params.userId) {
-        // Load user detail - get user name for header
-        // Pass preloadUser if available for instant display
-        const userData = await loadUserDetailData(
-          params.userId,
-          getAdminApiUrl,
-          getAuthHeaders,
-          params.preloadUser
-        );
+        document.getElementById('admin-user-detail')?.classList.add('active');
+        const userData = await loadUserDetailData(params.userId, getAdminApiUrl, getAuthHeaders, params.preloadUser);
         currentUserName = userData?.name || 'Member Details';
         currentView = 'user-detail';
-        updateHeader('user-detail', currentUserName);
+        updateHeader(currentUserName, true, 'Members');
         updateUrl('members', { userId: params.userId });
-        document.getElementById('admin-members')?.classList.remove('active');
-        document.getElementById('admin-user-detail')?.classList.add('active');
       } else {
-        updateHeader('members');
-        await loadUserListData(getAdminApiUrl, getAuthHeaders, false); // Don't force refresh
+        document.getElementById('admin-members')?.classList.add('active');
+        updateHeader('Members');
+        await loadUserListData(getAdminApiUrl, getAuthHeaders, false);
       }
       break;
-    case 'user-detail':
+    }
+
+    case 'user-detail': {
+      document.getElementById('admin-user-detail')?.classList.add('active');
       if (params.userId) {
-        const userData = await loadUserDetailData(
-          params.userId,
-          getAdminApiUrl,
-          getAuthHeaders,
-          params.preloadUser
-        );
+        const userData = await loadUserDetailData(params.userId, getAdminApiUrl, getAuthHeaders, params.preloadUser);
         currentUserName = userData?.name || 'Member Details';
-        updateHeader('user-detail', currentUserName);
-        updateUrl('users', { userId: params.userId });
+        updateHeader(currentUserName, true, 'Members');
+        updateUrl('members', { userId: params.userId });
       }
       break;
-    case 'content':
-      updateHeader('content');
-      await loadContentStatsData(getAdminApiUrl, getAuthHeaders, false); // Don't force refresh
-      break;
-    case 'content-stats':
-      // Alias for content
-      currentView = 'content';
-      updateHeader('content');
-      await loadContentStatsData(getAdminApiUrl, getAuthHeaders, false); // Don't force refresh
+    }
+
+    case 'tutorials':
+    case 'content-stats': {
+      currentView = 'tutorials';
       document.getElementById('admin-content')?.classList.add('active');
+      updateHeader('Tutorials');
+      await loadContentStatsData(getAdminApiUrl, getAuthHeaders, false);
       break;
-    case 'tutorial-detail':
+    }
+
+    case 'tutorial-detail': {
+      document.getElementById('admin-tutorial-detail')?.classList.add('active');
       if (params.tutorialId) {
-        updateHeader('tutorial-detail', 'Tutorial Details');
-        // Lazy load tutorial detail module
+        updateHeader('Tutorial Details', true, 'Tutorials');
         if (!loadTutorialDetail) {
           const module = await import('./tutorial-detail.js');
           loadTutorialDetail = module.loadTutorialDetail;
@@ -501,177 +382,113 @@ async function navigateToView(view, params = {}) {
         updateUrl('tutorial-detail', { tutorialId: params.tutorialId });
       }
       break;
-    case 'analytics':
-      updateHeader('analytics');
-      await loadAnalyticsData(getAdminApiUrl, getAuthHeaders, false); // Don't force refresh
+    }
+
+    case 'analytics': {
+      document.getElementById('admin-analytics')?.classList.add('active');
+      updateHeader('Analytics');
+      await loadAnalyticsData(getAdminApiUrl, getAuthHeaders, false);
       break;
-    case 'projections':
-      updateHeader('projections');
-      await loadProjectionsData(getAdminApiUrl, getAuthHeaders, false); // Don't force refresh
+    }
+
+    case 'audience': {
+      document.getElementById('admin-audience')?.classList.add('active');
+      updateHeader('Audience');
+      await loadAnalyticsData(getAdminApiUrl, getAuthHeaders, false);
       break;
+    }
+
+    case 'projections': {
+      document.getElementById('admin-projections')?.classList.add('active');
+      updateHeader('Projections');
+      await loadProjectionsData(getAdminApiUrl, getAuthHeaders, false);
+      break;
+    }
   }
 }
 
 /**
- * Update URL without reload
+ * Update URL
  */
 function updateUrl(view, params = {}) {
-  let path = `/`;
-  if (view && view !== 'overview') {
-    path = `/${view}`;
-  }
+  let path = '/';
   if (params.userId) {
     path = `/members/${params.userId}`;
+  } else if (params.tutorialId) {
+    path = `/tutorials/${params.tutorialId}`;
+  } else if (view && view !== 'dashboard') {
+    path = `/${view}`;
   }
-
   if (window.location.pathname !== path) {
-    // Store the view and params in state for restoration
     window.history.pushState({ view, params }, '', path);
   }
 }
 
 /**
- * Parse current URL to determine which admin view to show
+ * Parse URL
  */
 function parseAdminUrl() {
-  const path = window.location.pathname;
+  const path = window.location.pathname || '/';
 
-  // Match /members/:userId
-  const userDetailMatch = path.match(/^\/members\/([^\/]+)$/);
+  const userDetailMatch = path.match(/^\/members\/([^/]+)$/);
   if (userDetailMatch) {
     return { view: 'user-detail', params: { userId: userDetailMatch[1] } };
   }
 
-  // Match /:view
-  const viewMatch = path.match(/^\/([^\/]+)$/);
-  if (viewMatch) {
-    const view = viewMatch[1];
-    // Map URL segments to view names
-    return { view, params: {} };
+  const tutorialDetailMatch = path.match(/^\/tutorials\/([^/]+)$/);
+  if (tutorialDetailMatch) {
+    return { view: 'tutorial-detail', params: { tutorialId: tutorialDetailMatch[1] } };
   }
 
-  // Default to overview
-  if (path === '/' || path === '') {
-    return { view: 'overview', params: {} };
+  const viewMatch = path.match(/^\/([^/]+)$/);
+  if (viewMatch) {
+    return { view: viewMatch[1], params: {} };
+  }
+
+  if (path === '/') {
+    return { view: 'dashboard', params: {} };
   }
 
   return null;
 }
 
 /**
- * Restore admin state from URL on page load or navigation
- */
-export async function restoreAdminFromUrl() {
-  const parsed = parseAdminUrl();
-  if (!parsed) return false;
-
-  // Verify admin access first
-  const hasAccess = await verifyAdminAccess();
-  if (!hasAccess) {
-    window.location.href = '/';
-    return false;
-  }
-
-  // Open admin dashboard with the parsed view
-  await openAdminDashboard(parsed.view, parsed.params);
-  return true;
-}
-
-/**
  * Close admin dashboard
  */
 export function closeAdminDashboard() {
-  const adminOverlay = document.getElementById('admin-overlay');
-  if (adminOverlay) {
-    adminOverlay.style.display = 'none';
-    adminOverlay.classList.remove('visible');
-  }
-
-  // Show dashboard view without reload
-  const dashboardView = document.getElementById('hotline-dashboard-view');
-  if (dashboardView) {
-    dashboardView.style.display = 'block';
-  }
-
-  // Update URL without reload
+  const container = document.getElementById('admin-container');
+  if (container) container.classList.remove('ready');
   window.history.pushState({}, '', '/');
-  document.title = 'Dashboard • Emergency Piano Hotline';
 }
 
-/**
- * Check if admin is loaded
- */
-export function isAdminDashboardLoaded() {
-  return isAdminLoaded;
-}
+export function isAdminDashboardLoaded() { return isAdminLoaded; }
+export function isUserAdmin() { return isAdminVerified; }
 
 /**
- * Export for router to check admin status
- */
-export function isUserAdmin() {
-  return isAdminVerified;
-}
-
-/**
- * Check admin status and inject admin pill button if user is admin
- * Called after auth is ready
+ * Admin button injection for members site
  */
 export async function checkAndInjectAdminButton() {
-  debug.log('🔍 Checking admin status for button injection...');
-
-  // Don't check if already verified or button already exists
-  if (document.getElementById('admin-pill-button')) {
-    debug.log('⏭️ Admin button already exists, skipping');
-    return;
-  }
-
+  if (document.getElementById('admin-pill-button')) return;
   try {
     const isAdmin = await verifyAdminAccess();
-    debug.log(`👤 Admin verification result: ${isAdmin}`);
-
     if (isAdmin) {
-      injectAdminPillButton();
-    } else {
-      debug.log('❌ User is not admin, button not injected');
+      const footerLinks = document.querySelector('.dashboard-footer-links');
+      if (!footerLinks) return;
+      const adminPill = document.createElement('a');
+      adminPill.id = 'admin-pill-button';
+      adminPill.href = 'https://admin.emergencypianohotline.com';
+      adminPill.className = 'dashboard-link-pill';
+      adminPill.target = '_blank';
+      adminPill.textContent = 'ADMIN';
+      footerLinks.insertBefore(adminPill, footerLinks.firstChild);
     }
   } catch (err) {
-    debug.error('❌ Admin button check failed:', err);
+    debug.error('Admin button check failed:', err);
   }
 }
 
-/**
- * Inject admin pill button into dashboard footer
- */
-function injectAdminPillButton() {
-  if (document.getElementById('admin-pill-button')) {
-    return; // Already exists
-  }
-
-  // Find the dashboard footer links container
-  const footerLinks = document.querySelector('.dashboard-footer-links');
-  if (!footerLinks) {
-    debug.warn('⚠️ Could not find .dashboard-footer-links for admin button');
-    return;
-  }
-
-  // Create admin pill button
-  const adminPill = document.createElement('a');
-  adminPill.id = 'admin-pill-button';
-  adminPill.href = 'https://admin.emergencypianohotline.com';
-  adminPill.className = 'dashboard-link-pill';
-  adminPill.target = '_blank'; // Open in new tab
-  adminPill.textContent = 'ADMIN';
-
-  // Insert before the first link (Resources)
-  footerLinks.insertBefore(adminPill, footerLinks.firstChild);
-
-  debug.log('✅ Admin pill button injected');
-}
-
-// Export API helpers and navigation for child modules
 export { getAdminApiUrl, getAuthHeaders, navigateToView };
 
-// Also expose navigateToView globally for click handlers
 if (!window.HOTLINE) window.HOTLINE = {};
 if (!window.HOTLINE.admin) window.HOTLINE.admin = {};
 window.HOTLINE.admin.navigateToView = navigateToView;

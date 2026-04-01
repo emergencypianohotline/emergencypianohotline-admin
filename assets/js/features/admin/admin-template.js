@@ -1,549 +1,746 @@
 /**
- * @fileoverview Admin Dashboard HTML Template
+ * @fileoverview Admin Dashboard HTML Template (Tabler)
  *
- * Returns the admin UI as a string - loaded dynamically only for verified admins.
- * This keeps the admin structure out of the main page source.
+ * Sidebar layout with 5 pages: Dashboard, Members, Live, Content, Projections.
+ * Returned as a string — loaded dynamically only for verified admins.
  */
 
 export function getAdminTemplate() {
   return `
-    <div class="admin-container">
-      <!-- Header - matches song overlay structure -->
-      <header class="admin-header">
-        <div class="admin-back-links">
-          <button class="admin-back-btn" id="admin-back-btn">EMERGENCY PIANO HOTLINE</button>
+    <div class="page">
+      <!-- Top navbar -->
+      <header class="navbar navbar-expand-md" data-bs-theme="dark" style="background:#0f0f0f;border-bottom:1px solid rgba(255,255,255,0.06);padding-top:0.75rem;padding-bottom:0.75rem">
+        <div class="container-xxl">
+          <a class="navbar-brand navbar-brand-autodark me-auto" href="/" style="font-weight:700;padding-left:0.25rem">
+            Emergency Piano Hotline
+          </a>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                  data-bs-target="#sidebar-menu" aria-expanded="false">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <div class="collapse navbar-collapse" id="sidebar-menu">
+            <ul class="navbar-nav ms-auto">
+              <li class="nav-item">
+                <a class="nav-link admin-nav-link active" href="#" data-view="dashboard">Dashboard</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link admin-nav-link" href="#" data-view="members">Members</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link admin-nav-link" href="#" data-view="tutorials">Tutorials</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link admin-nav-link" href="#" data-view="activity">Activity</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link admin-nav-link" href="#" data-view="analytics">Analytics</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link admin-nav-link" href="#" data-view="audience">Audience</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link admin-nav-link" href="#" data-view="projections">Projections</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#" id="admin-refresh-btn" title="Refresh"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4"/></svg></a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#" id="admin-signout-btn">Sign Out</a>
+              </li>
+            </ul>
+          </div>
+          <a href="#" class="btn btn-ghost-secondary btn-sm d-none" id="admin-back-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            <span id="admin-back-label">Back</span>
+          </a>
+          <h2 class="page-title mb-0 d-none" id="admin-page-title">Dashboard</h2>
         </div>
-        <h1 class="admin-title" id="admin-page-title">Admin</h1>
-        <nav class="admin-nav">
-          <a href="#" class="admin-nav-link" data-view="live">Live</a>
-          <a href="#" class="admin-nav-link" data-view="members">Members</a>
-          <a href="#" class="admin-nav-link" data-view="content">Tutorials</a>
-          <a href="#" class="admin-nav-link" data-view="analytics">Analytics</a>
-          <a href="#" class="admin-nav-link" data-view="projections">Projections</a>
-          <button class="admin-nav-link admin-signout-link" id="admin-signout-btn">Sign Out</button>
-        </nav>
       </header>
 
-      <!-- Content -->
-      <main class="admin-content">
+      <!-- Page wrapper -->
+      <div class="page-wrapper">
 
-        <!-- Overview Section -->
-        <section id="admin-overview" class="admin-section active">
-          <div class="admin-section-header">
-            <h2>Overview</h2>
-            <button class="admin-refresh-btn" data-refresh="overview">Refresh</button>
-          </div>
+        <!-- Page body -->
+        <div class="page-body">
+          <div class="container-xxl">
 
-          <!-- Stats Cards -->
-          <div class="admin-stats-grid">
-            <div class="admin-stat-card">
-              <div class="admin-stat-value" id="stat-total-members">-</div>
-              <div class="admin-stat-label">Total Members</div>
-            </div>
-            <div class="admin-stat-card active">
-              <div class="admin-stat-value" id="stat-active">-</div>
-              <div class="admin-stat-label">Active (0-3 days)</div>
-            </div>
-            <div class="admin-stat-card at-risk">
-              <div class="admin-stat-value" id="stat-at-risk">-</div>
-              <div class="admin-stat-label">At Risk (4-14 days)</div>
-            </div>
-            <div class="admin-stat-card dormant">
-              <div class="admin-stat-value" id="stat-dormant">-</div>
-              <div class="admin-stat-label">Dormant (>14 days)</div>
-            </div>
-          </div>
+            <!-- ============ DASHBOARD ============ -->
+            <section id="admin-dashboard" class="admin-section active">
 
-          <!-- Secondary Stats -->
-          <div class="admin-stats-grid secondary">
-            <div class="admin-stat-card">
-              <div class="admin-stat-value" id="stat-watch-time">-</div>
-              <div class="admin-stat-label">Total Watch Time</div>
-            </div>
-            <div class="admin-stat-card">
-              <div class="admin-stat-value" id="stat-completions">-</div>
-              <div class="admin-stat-label">Total Completions</div>
-            </div>
-            <div class="admin-stat-card">
-              <div class="admin-stat-value" id="stat-new-signups">-</div>
-              <div class="admin-stat-label">New This Week</div>
-            </div>
-            <div class="admin-stat-card">
-              <div class="admin-stat-value" id="stat-week-completions">-</div>
-              <div class="admin-stat-label">Completions This Week</div>
-            </div>
-          </div>
-
-          <!-- Revenue & Business Metrics -->
-          <div class="admin-stats-grid billing-stats">
-            <div class="admin-stat-card billing">
-              <div class="admin-stat-value" id="stat-mrr">-</div>
-              <div class="admin-stat-label">Monthly Recurring Revenue</div>
-            </div>
-            <div class="admin-stat-card billing">
-              <div class="admin-stat-value" id="stat-active-subs">-</div>
-              <div class="admin-stat-label">Active Subscribers</div>
-            </div>
-            <div class="admin-stat-card billing">
-              <div class="admin-stat-value" id="stat-ltv">-</div>
-              <div class="admin-stat-label">Avg Lifetime Value</div>
-            </div>
-            <div class="admin-stat-card billing">
-              <div class="admin-stat-value" id="stat-churn-rate">-</div>
-              <div class="admin-stat-label">Churn Rate</div>
-            </div>
-          </div>
-
-          <!-- Growth Metrics -->
-          <div class="admin-stats-grid billing-stats">
-            <div class="admin-stat-card billing">
-              <div class="admin-stat-value" id="stat-new-signups">-</div>
-              <div class="admin-stat-label">New Signups This Month</div>
-            </div>
-            <div class="admin-stat-card billing">
-              <div class="admin-stat-value" id="stat-signup-growth">-</div>
-              <div class="admin-stat-label">Growth vs Last Month</div>
-            </div>
-            <div class="admin-stat-card billing">
-              <div class="admin-stat-value" id="stat-monthly-subs">-</div>
-              <div class="admin-stat-label">Monthly Plans</div>
-            </div>
-            <div class="admin-stat-card billing">
-              <div class="admin-stat-value" id="stat-yearly-subs">-</div>
-              <div class="admin-stat-label">Annual Plans</div>
-            </div>
-          </div>
-
-          <!-- At Risk Members Preview -->
-          <div class="admin-panel">
-            <div class="admin-panel-header">
-              <h3>Needs Attention</h3>
-              <a href="#" class="admin-link" data-view="members">View All Members</a>
-            </div>
-            <div id="at-risk-preview" class="admin-list">
-              <div class="admin-loading">Loading...</div>
-            </div>
-          </div>
-
-          <!-- Phase 8d: Actionable At-Risk Lists -->
-          <div class="at-risk-lists-container">
-            <!-- Trial Ending Soon -->
-            <div class="admin-panel at-risk-panel">
-              <div class="admin-panel-header">
-                <h3>Trial Ending Soon</h3>
-                <span class="at-risk-count" id="trial-ending-count">0</span>
+              <!-- KPI cards - Row 1 -->
+              <div class="row row-deck row-cards mb-3">
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Monthly Revenue</div>
+                      <div class="h1 mb-0" id="stat-mrr">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Annual Revenue</div>
+                      <div class="h1 mb-0" id="stat-arr">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Total Members</div>
+                      <div class="h1 mb-0" id="stat-total-subs">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">New This Week</div>
+                      <div class="h1 mb-0" id="stat-new-signups">-</div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div id="trial-ending-list" class="admin-list">
-                <div class="admin-empty">No trials ending soon</div>
+              <!-- KPI cards - Row 2 -->
+              <div class="row row-deck row-cards mb-3">
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Monthly Members</div>
+                      <div class="h1 mb-0" id="stat-monthly-subs">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Annual Members</div>
+                      <div class="h1 mb-0" id="stat-yearly-subs">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Cancelling</div>
+                      <div class="h1 mb-0" id="stat-churn-rate">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Past Due</div>
+                      <div class="h1 mb-0" id="stat-past-due">-</div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <!-- Gone Quiet -->
-            <div class="admin-panel at-risk-panel">
-              <div class="admin-panel-header">
-                <h3>Gone Quiet</h3>
-                <span class="at-risk-count" id="gone-quiet-count">0</span>
+              <!-- New Signups Chart + Latest Members side by side -->
+              <div class="row row-deck row-cards mb-3">
+                <div class="col-lg-6">
+                  <div class="card">
+                    <div class="card-header">
+                      <h3 class="card-title">New Signups</h3>
+                      <div class="card-actions">
+                        <div class="d-flex gap-2" role="group">
+                          <button class="btn btn-sm btn-outline-secondary active" data-signup-range="28d" style="border-radius:1rem;text-transform:uppercase;font-size:0.65rem;letter-spacing:0.04em;padding-left:0.45rem;padding-right:0.45rem">28 Days</button>
+                          <button class="btn btn-sm btn-outline-secondary" data-signup-range="12m" style="border-radius:1rem;text-transform:uppercase;font-size:0.65rem;letter-spacing:0.04em;padding-left:0.45rem;padding-right:0.45rem">12 Months</button>
+                          <button class="btn btn-sm btn-outline-secondary" data-signup-range="all" style="border-radius:1rem;text-transform:uppercase;font-size:0.65rem;letter-spacing:0.04em;padding-left:0.45rem;padding-right:0.45rem">All Time</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="card-body">
+                      <div id="chart-signups-histogram" style="height:250px;"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-lg-6">
+                  <div class="card">
+                    <div class="card-header">
+                      <h3 class="card-title">Latest Members</h3>
+                    </div>
+                    <div class="card-body p-0 d-flex flex-column" style="padding-bottom:0.75rem!important">
+                      <div id="recent-signups-list" style="flex:1;display:flex;flex-direction:column"></div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div id="gone-quiet-list" class="admin-list">
-                <div class="admin-empty">No users have gone quiet</div>
+
+            </section>
+
+            <!-- ============ ACTIVITY ============ -->
+            <section id="admin-activity" class="admin-section">
+              <div id="activity-days-container">
+                <div class="text-secondary">Loading activity...</div>
               </div>
-            </div>
+            </section>
 
-            <!-- Stuck on Tutorial -->
-            <div class="admin-panel at-risk-panel">
-              <div class="admin-panel-header">
-                <h3>Stuck on Tutorial</h3>
-                <span class="at-risk-count" id="stuck-tutorial-count">0</span>
+            <!-- ============ MEMBERS ============ -->
+            <section id="admin-members" class="admin-section">
+              <div class="row row-deck row-cards mb-3">
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Subscribed</div>
+                      <div class="h1 mb-0" id="members-kpi-total">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Cancelling</div>
+                      <div class="h1 mb-0" id="members-kpi-cancelling">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Past Due</div>
+                      <div class="h1 mb-0" id="members-kpi-pastdue">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Expired</div>
+                      <div class="h1 mb-0" id="members-kpi-expired">-</div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div id="stuck-tutorial-list" class="admin-list">
-                <div class="admin-empty">No users are stuck</div>
+              <div class="row row-deck row-cards mb-3">
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Active</div>
+                      <div class="h1 mb-0" id="members-kpi-active">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">At Risk</div>
+                      <div class="h1 mb-0" id="members-kpi-atrisk">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Dormant</div>
+                      <div class="h1 mb-0" id="members-kpi-dormant">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Pending</div>
+                      <div class="h1 mb-0" id="members-kpi-never">-</div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </section>
 
-        <!-- Live Section -->
-        <section id="admin-live" class="admin-section">
-          <div class="admin-section-header">
-            <h2>Live Activity</h2>
-            <div class="live-header-meta">
-              <span id="live-connection-status" class="live-connection-indicator connected" title="Connected"></span>
-              <span class="live-header-label">Real-time</span>
-            </div>
-          </div>
-
-          <!-- Live Stats Cards -->
-          <div class="admin-stats-grid live-stats-grid">
-            <div class="admin-stat-card live-stat">
-              <div class="admin-stat-value" id="live-watching-now">0</div>
-              <div class="admin-stat-label">Watching Now</div>
-            </div>
-            <div class="admin-stat-card live-stat">
-              <div class="admin-stat-value" id="live-today-completions">0</div>
-              <div class="admin-stat-label">Completions Today</div>
-            </div>
-            <div class="admin-stat-card live-stat">
-              <div class="admin-stat-value" id="live-today-watchtime">0m</div>
-              <div class="admin-stat-label">Watch Time Today</div>
-            </div>
-            <div class="admin-stat-card live-stat">
-              <div class="admin-stat-value" id="live-today-signups">0</div>
-              <div class="admin-stat-label">Signups Today</div>
-            </div>
-          </div>
-
-          <!-- Activity Feed -->
-          <div class="admin-panel">
-            <div class="admin-panel-header">
-              <h3>Activity Feed</h3>
-            </div>
-            <div id="live-activity-feed" class="live-activity-feed">
-              <div class="admin-loading">Connecting...</div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Members Section -->
-        <section id="admin-members" class="admin-section">
-          <div class="admin-section-header">
-            <h2>Members</h2>
-            <div class="admin-actions">
-              <input type="text" id="user-search" class="admin-search" placeholder="Search by name or email...">
-              <select id="user-filter-status" class="admin-select">
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="at_risk">At Risk</option>
-                <option value="dormant">Dormant</option>
-                <option value="new">New</option>
-              </select>
-              <select id="user-filter-risk" class="admin-select">
-                <option value="">All Risk</option>
-                <option value="critical">Critical</option>
-                <option value="at_risk">At Risk</option>
-                <option value="watch">Watch</option>
-                <option value="healthy">Healthy</option>
-              </select>
-              <button class="admin-btn" id="export-users-btn">Export CSV</button>
-            </div>
-          </div>
-
-          <div class="admin-table-container">
-            <table class="admin-table" id="users-table">
-              <thead>
-                <tr>
-                  <th data-sort="name">Name</th>
-                  <th data-sort="email">Email</th>
-                  <th data-sort="joinedAt">Joined</th>
-                  <th data-sort="lastActivity">Last Active</th>
-                  <th data-sort="progressPercent">Progress</th>
-                  <th data-sort="totalWatchTime">Watch Time</th>
-                  <th data-sort="status">Status</th>
-                  <th data-sort="riskScore">Risk</th>
-                </tr>
-              </thead>
-              <tbody id="users-table-body">
-                <tr><td colspan="8" class="admin-loading">Loading...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <!-- User Detail Section -->
-        <section id="admin-user-detail" class="admin-section">
-          <!-- User Profile Header -->
-          <div class="admin-user-header" id="user-detail-header">
-            <div class="admin-loading">Loading...</div>
-          </div>
-
-          <!-- Risk Assessment (Phase 8) -->
-          <div id="user-risk-panel" class="risk-indicator-panel" style="display:none;">
-            <div class="risk-indicator-header">
-              <span class="risk-indicator-title">Churn Risk Assessment</span>
-              <div class="risk-score-display">
-                <span class="risk-score-number" id="risk-score-value">0</span>
-                <span class="admin-risk-badge" id="risk-tier-badge">Healthy</span>
+              <div class="card">
+                <div class="card-header" style="padding:1rem 1.25rem">
+                  <h3 class="card-title" style="font-weight:700">Members</h3>
+                  <div class="card-actions d-flex gap-2 flex-wrap align-items-center" style="margin-right:0">
+                    <div class="d-flex gap-2">
+                      <button class="btn btn-sm btn-outline-secondary" data-member-filter="all" style="border-radius:1rem;text-transform:uppercase;font-size:0.65rem;letter-spacing:0.04em;padding-left:0.6rem;padding-right:0.6rem">All</button>
+                      <button class="btn btn-sm btn-outline-secondary active" data-member-filter="active" style="border-radius:1rem;text-transform:uppercase;font-size:0.65rem;letter-spacing:0.04em;padding-left:0.6rem;padding-right:0.6rem">Subscribed</button>
+                      <button class="btn btn-sm btn-outline-secondary" data-member-filter="cancelling" style="border-radius:1rem;text-transform:uppercase;font-size:0.65rem;letter-spacing:0.04em;padding-left:0.6rem;padding-right:0.6rem">Cancelling</button>
+                      <button class="btn btn-sm btn-outline-secondary" data-member-filter="past_due" style="border-radius:1rem;text-transform:uppercase;font-size:0.65rem;letter-spacing:0.04em;padding-left:0.6rem;padding-right:0.6rem">Past Due</button>
+                      <button class="btn btn-sm btn-outline-secondary" data-member-filter="expired" style="border-radius:1rem;text-transform:uppercase;font-size:0.65rem;letter-spacing:0.04em;padding-left:0.6rem;padding-right:0.6rem">Expired</button>
+                    </div>
+                    <input type="text" id="user-search" class="form-control form-control-sm" placeholder="Search..." style="width:180px;border-radius:1rem;font-size:0.65rem;letter-spacing:0.04em;padding-left:0.45rem;padding-right:0.45rem">
+                    <button class="btn btn-sm btn-outline-secondary" id="export-users-btn" style="border-radius:1rem;text-transform:uppercase;font-size:0.65rem;letter-spacing:0.04em;padding-left:0.45rem;padding-right:0.45rem">Export CSV</button>
+                  </div>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-vcenter card-table table-hover" id="users-table">
+                    <thead>
+                      <tr style="text-transform:none">
+                        <th class="text-center" style="text-transform:none;width:3rem">#</th>
+                        <th data-sort="name" style="text-transform:none">Name</th>
+                        <th data-sort="location" style="text-transform:none">Location</th>
+                        <th data-sort="subscriptionStatus" class="text-center" style="text-transform:none">Subscription</th>
+                        <th data-sort="joinedAt" class="text-center" style="text-transform:none">Joined</th>
+                        <th data-sort="lastActivity" class="text-center" style="text-transform:none">Last Active</th>
+                        <th data-sort="progressPercent" class="text-center" style="text-transform:none">Progress</th>
+                        <th data-sort="totalWatchSeconds" class="text-center" style="text-transform:none">Watch Time</th>
+                        <th data-sort="status" class="text-center" style="text-transform:none">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="users-table-body">
+                      <tr><td colspan="9" class="text-center text-secondary">Loading...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-            <div class="risk-factors-list" id="risk-factors-list">
-            </div>
-          </div>
+            </section>
 
-          <!-- Health Indicators -->
-          <div class="admin-panel health-panel" id="health-indicators-panel">
-            <h3>Health Status</h3>
-            <div id="user-health-indicators" class="health-indicators-grid">
-            </div>
-          </div>
-
-          <!-- User Stats -->
-          <div class="admin-stats-grid" id="user-detail-stats">
-          </div>
-
-          <!-- Timeline -->
-          <div class="admin-panel">
-            <div class="admin-panel-header">
-              <h3>Activity Timeline</h3>
-              <div class="timeline-controls">
-                <select id="timeline-filter" class="admin-select timeline-filter">
-                  <option value="all">All Events</option>
-                  <option value="watched">Watched</option>
-                  <option value="completed">Completed</option>
-                  <option value="note">Notes</option>
-                </select>
+            <!-- ============ USER DETAIL ============ -->
+            <section id="admin-user-detail" class="admin-section">
+              <div id="user-detail-header">
+                <div class="text-secondary">Loading...</div>
               </div>
-            </div>
-            <div id="user-timeline" class="admin-timeline">
-              <div class="admin-loading">Loading...</div>
-            </div>
-            <div class="timeline-footer">
-              <button id="timeline-load-more" class="admin-btn" style="display:none;">Load More</button>
-            </div>
-          </div>
 
-          <!-- Stuck Tutorials -->
-          <div class="admin-panel" id="stuck-tutorials-panel" style="display:none;">
-            <h3>Struggling With</h3>
-            <div id="stuck-tutorials-list" class="admin-list">
-            </div>
-          </div>
-        </section>
+              <div id="user-risk-panel" style="display:none;"></div>
 
-        <!-- Tutorial Detail Section -->
-        <section id="admin-tutorial-detail" class="admin-section">
-          <div id="tutorial-detail-container">
-            <div class="admin-loading">Loading...</div>
-          </div>
-        </section>
+              <div id="health-indicators-panel" style="display:none;"></div>
 
-        <!-- Content Section -->
-        <section id="admin-content" class="admin-section">
-          <div class="admin-section-header">
-            <h2>Content Performance</h2>
-            <div class="admin-actions">
-              <select id="content-filter-song" class="admin-select">
-                <option value="">All Songs</option>
-              </select>
-              <button class="admin-btn" id="export-content-btn">Export CSV</button>
-            </div>
-          </div>
+              <div class="row row-deck row-cards mb-3" id="user-detail-stats"></div>
 
-          <!-- Problem Content Alerts -->
-          <div id="problem-content-alerts" class="problem-alerts-container" style="display:none;">
-            <div id="problem-tutorials-alert" class="admin-alert warning" style="display:none;">
-              <strong>Low Completion:</strong> <span id="problem-tutorials-count">0</span> tutorials have &lt;40% completion rate
-            </div>
-            <div id="high-rewatch-alert" class="admin-alert warning" style="display:none;">
-              <strong>High Rewatch:</strong> <span id="high-rewatch-count">0</span> tutorials have unusually high re-watch rates
-            </div>
-            <div id="slow-songs-alert" class="admin-alert warning" style="display:none;">
-              <strong>Slow Progress:</strong> <span id="slow-songs-count">0</span> songs take longer than average to complete
-            </div>
-          </div>
-
-          <!-- Song Stats Panel -->
-          <div class="admin-panel">
-            <div class="admin-panel-header">
-              <h3>Song Progress Overview</h3>
-            </div>
-            <div id="content-song-stats">
-              <div class="admin-loading">Loading...</div>
-            </div>
-          </div>
-
-          <!-- Tutorial Table -->
-          <div class="admin-panel">
-            <div class="admin-panel-header">
-              <h3>Tutorial Details</h3>
-            </div>
-            <div class="admin-table-container">
-              <table class="admin-table" id="content-table">
-                <thead>
-                  <tr>
-                    <th data-sort="title">Tutorial</th>
-                    <th data-sort="songTitle">Song</th>
-                    <th data-sort="uniqueViewers">Viewers</th>
-                    <th data-sort="completions">Completions</th>
-                    <th data-sort="completionRate">Rate</th>
-                    <th data-sort="manualPercent">Manual %</th>
-                    <th data-sort="rewatchRate">Rewatch</th>
-                    <th data-sort="medianExitPercent">Exit Pt</th>
-                  </tr>
-                </thead>
-                <tbody id="content-table-body">
-                  <tr><td colspan="8" class="admin-loading">Loading...</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        <!-- Analytics Section -->
-        <section id="admin-analytics" class="admin-section">
-          <div class="admin-section-header">
-            <h2>Platform Analytics</h2>
-            <button class="admin-refresh-btn" data-refresh="analytics">Refresh</button>
-          </div>
-
-          <!-- Engagement Metrics -->
-          <div class="admin-panel">
-            <div class="admin-panel-header">
-              <h3>Engagement Metrics</h3>
-            </div>
-            <div id="analytics-engagement">
-              <div class="admin-loading">Loading...</div>
-            </div>
-          </div>
-
-          <!-- Session Stats (Phase 6) -->
-          <div class="admin-panel">
-            <div class="admin-panel-header">
-              <h3>Login Sessions</h3>
-            </div>
-            <div id="analytics-sessions">
-              <div class="admin-loading">Loading...</div>
-            </div>
-          </div>
-
-          <!-- Completion Funnel -->
-          <div class="admin-panel">
-            <div class="admin-panel-header">
-              <h3>Song Completion Funnel</h3>
-            </div>
-            <div id="analytics-funnel">
-              <div class="admin-loading">Loading...</div>
-            </div>
-          </div>
-
-          <!-- Engagement Distribution -->
-          <div class="admin-panel">
-            <div class="admin-panel-header">
-              <h3>Engagement Distribution</h3>
-            </div>
-            <div id="analytics-distribution">
-              <div class="admin-loading">Loading...</div>
-            </div>
-          </div>
-
-          <!-- Cohort Analysis -->
-          <div class="admin-panel">
-            <div class="admin-panel-header">
-              <h3>Cohort Analysis</h3>
-            </div>
-            <div id="analytics-cohorts">
-              <div class="admin-loading">Loading...</div>
-            </div>
-          </div>
-
-          <!-- Completion Matrix -->
-          <div class="admin-panel completion-matrix-panel">
-            <div class="admin-panel-header">
-              <h3>Member × Tutorial Matrix</h3>
-              <div class="matrix-legend">
-                <span class="legend-item"><span class="legend-box not-started"></span> Not Started</span>
-                <span class="legend-item"><span class="legend-box in-progress"></span> In Progress</span>
-                <span class="legend-item"><span class="legend-box completed"></span> Completed</span>
+              <div class="card mb-3">
+                <div class="card-header">
+                  <h3 class="card-title">Activity Timeline</h3>
+                  <div class="card-actions">
+                    <select id="timeline-filter" class="form-select form-select-sm" style="width:140px;">
+                      <option value="all">All Events</option>
+                      <option value="watched">Watched</option>
+                      <option value="completed">Completed</option>
+                      <option value="note">Notes</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <div id="user-timeline" class="list-group list-group-flush">
+                    <div class="text-secondary">Loading...</div>
+                  </div>
+                  <button id="timeline-load-more" class="btn btn-secondary btn-sm mt-3" style="display:none;">Load More</button>
+                </div>
               </div>
-            </div>
-            <div id="analytics-matrix">
-              <div class="admin-loading">Loading...</div>
-            </div>
-          </div>
-        </section>
 
-        <!-- Projections Section -->
-        <section id="admin-projections" class="admin-section">
-          <div class="admin-section-header">
-            <h2>Projections vs Actuals</h2>
-            <button class="admin-refresh-btn" data-refresh="projections">Refresh</button>
-          </div>
-
-          <!-- Current Snapshot -->
-          <div class="admin-stats-grid projections-current">
-            <div class="admin-stat-card">
-              <div class="admin-stat-value" id="proj-current-members">-</div>
-              <div class="admin-stat-label">Current Members</div>
-            </div>
-            <div class="admin-stat-card">
-              <div class="admin-stat-value" id="proj-current-mrr-eur">-</div>
-              <div class="admin-stat-label">MRR (EUR)</div>
-            </div>
-            <div class="admin-stat-card">
-              <div class="admin-stat-value" id="proj-current-mrr-aud">-</div>
-              <div class="admin-stat-label">MRR (AUD)</div>
-            </div>
-            <div class="admin-stat-card">
-              <div class="admin-stat-value" id="proj-total-signups">-</div>
-              <div class="admin-stat-label">Total Signups</div>
-            </div>
-          </div>
-
-          <!-- Signups Chart -->
-          <div class="admin-panel">
-            <div class="admin-panel-header">
-              <h3>Monthly Signups</h3>
-            </div>
-            <div id="projections-signups-chart" class="projections-chart">
-              <div class="admin-loading">Loading...</div>
-            </div>
-          </div>
-
-          <!-- Members Chart -->
-          <div class="admin-panel">
-            <div class="admin-panel-header">
-              <h3>Total Members</h3>
-            </div>
-            <div id="projections-members-chart" class="projections-chart">
-              <div class="admin-loading">Loading...</div>
-            </div>
-          </div>
-
-          <!-- Revenue Chart -->
-          <div class="admin-panel">
-            <div class="admin-panel-header">
-              <h3>Monthly Revenue</h3>
-              <div class="chart-currency-toggle">
-                <button class="currency-btn active" data-currency="eur">EUR</button>
-                <button class="currency-btn" data-currency="aud">AUD</button>
+              <div id="stuck-tutorials-panel" class="card" style="display:none;">
+                <div class="card-header"><h3 class="card-title">Struggling With</h3></div>
+                <div class="card-body">
+                  <div id="stuck-tutorials-list" class="list-group list-group-flush"></div>
+                </div>
               </div>
-            </div>
-            <div id="projections-revenue-chart" class="projections-chart">
-              <div class="admin-loading">Loading...</div>
-            </div>
-          </div>
+            </section>
 
-          <!-- Data Table -->
-          <div class="admin-panel">
-            <div class="admin-panel-header">
-              <h3>Monthly Breakdown</h3>
-            </div>
-            <div class="admin-table-container">
-              <table class="admin-table projections-table" id="projections-table">
-                <thead>
-                  <tr>
-                    <th>Month</th>
-                    <th colspan="2">Signups</th>
-                    <th colspan="2">Members</th>
-                    <th colspan="2">Revenue (EUR)</th>
-                  </tr>
-                  <tr class="sub-header">
-                    <th></th>
-                    <th>Proj</th>
-                    <th>Actual</th>
-                    <th>Proj</th>
-                    <th>Actual</th>
-                    <th>Proj</th>
-                    <th>Actual</th>
-                  </tr>
-                </thead>
-                <tbody id="projections-table-body">
-                  <tr><td colspan="7" class="admin-loading">Loading...</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+            <!-- ============ CONTENT ============ -->
+            <section id="admin-content" class="admin-section">
 
-      </main>
+              <!-- KPI Row 1 -->
+              <div class="row row-deck row-cards mb-3">
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Total Tutorials</div>
+                      <div class="h1 mb-0" id="stat-total-tutorials">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Total Duration</div>
+                      <div class="h1 mb-0" id="stat-total-duration">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Weeks Left</div>
+                      <div class="h1 mb-0" id="stat-weeks-left">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Final Release</div>
+                      <div class="h1 mb-0" id="stat-final-release">-</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- KPI Row 2 -->
+              <div class="row row-deck row-cards mb-3">
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Released Tutorials</div>
+                      <div class="h1 mb-0" id="stat-released-tutorials">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Released Duration</div>
+                      <div class="h1 mb-0" id="stat-released-duration">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Unreleased Tutorials</div>
+                      <div class="h1 mb-0" id="stat-unreleased-tutorials">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Unreleased Duration</div>
+                      <div class="h1 mb-0" id="stat-unreleased-duration">-</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- KPI Row 3 -->
+              <div class="row row-deck row-cards mb-3">
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Total Views</div>
+                      <div class="h1 mb-0" id="stat-total-views">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Completed Tutorials</div>
+                      <div class="h1 mb-0" id="stat-completed-tutorials">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Total Watch Time</div>
+                      <div class="h1 mb-0" id="stat-total-watch-time">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Avg Completion Rate</div>
+                      <div class="h1 mb-0" id="stat-avg-completion-rate">-</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
+              <!-- Song accordion -->
+              <div id="content-accordion"></div>
+
+            </section>
+
+            <!-- ============ TUTORIAL DETAIL ============ -->
+            <section id="admin-tutorial-detail" class="admin-section">
+              <div id="tutorial-detail-container">
+                <div class="text-secondary">Loading...</div>
+              </div>
+            </section>
+
+            <!-- ============ ANALYTICS ============ -->
+            <section id="admin-analytics" class="admin-section">
+
+              <!-- KPI Row 1: Audience health -->
+              <div class="row row-deck row-cards mb-3">
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Daily Active</div>
+                      <div class="h1 mb-0" id="analytics-kpi-dau">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Weekly Active</div>
+                      <div class="h1 mb-0" id="analytics-kpi-wau">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Monthly Active</div>
+                      <div class="h1 mb-0" id="analytics-kpi-mau">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Stickiness (DAU÷MAU)</div>
+                      <div class="h1 mb-0" id="analytics-kpi-stickiness">-</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- KPI Row 2: Session quality -->
+              <div class="row row-deck row-cards mb-3">
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Weekly Returning Rate</div>
+                      <div class="h1 mb-0" id="analytics-kpi-returning">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Avg Session Duration</div>
+                      <div class="h1 mb-0" id="analytics-kpi-session-duration">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Avg Weekly Watch / User</div>
+                      <div class="h1 mb-0" id="analytics-kpi-avg-watch">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                  <div class="card">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div class="subheader">Avg Weekly Completions</div>
+                      <div class="h1 mb-0" id="analytics-kpi-avg-completions">-</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Growth & Churn + Engagement Distribution -->
+              <div class="row row-deck row-cards mb-3">
+                <div class="col-lg-7">
+                  <div class="card">
+                    <div class="card-header" style="padding-left:1rem">
+                      <h3 class="card-title">Growth & Churn</h3>
+                      <div class="card-options d-flex gap-2" id="analytics-growth-pills"></div>
+                    </div>
+                    <div class="card-body p-0" style="display:flex;flex-direction:column">
+                      <div id="analytics-growth" style="flex:1;display:flex;flex-direction:column">
+                        <div class="text-secondary p-3">Loading...</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-lg-5">
+                  <div class="card">
+                    <div class="card-header" style="padding-left:1rem">
+                      <h3 class="card-title">Engagement Distribution</h3>
+                    </div>
+                    <div class="card-body p-0">
+                      <div id="analytics-distribution">
+                        <div class="text-secondary p-3">Loading...</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Watch Time -->
+              <div class="row row-deck row-cards mb-3">
+                <div class="col-12">
+                  <div class="card">
+                    <div class="card-header" style="padding-left:1rem">
+                      <h3 class="card-title">Watch Time</h3>
+                      <div class="card-options d-flex gap-2" id="analytics-trend-pills"></div>
+                    </div>
+                    <div class="card-body">
+                      <div id="analytics-trend" style="height:200px"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Activity Heatmap -->
+              <div class="row row-deck row-cards mb-3">
+                <div class="col-12">
+                  <div class="card">
+                    <div class="card-header">
+                      <h3 class="card-title">Activity Heatmap</h3>
+                    </div>
+                    <div class="card-body p-0">
+                      <div id="analytics-heatmap">
+                        <div class="text-secondary p-3">Loading...</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Completion Funnel by Song -->
+              <div class="row row-deck row-cards mb-3">
+                <div class="col-12">
+                  <div class="card">
+                    <div class="card-header" style="padding-left:1rem">
+                      <h3 class="card-title">Completion Funnel by Song</h3>
+                      <div class="card-options d-flex align-items-center gap-3" style="font-size:0.75rem;color:rgba(255,255,255,0.5)">
+                        <span class="d-flex align-items-center gap-1"><span style="width:8px;height:8px;border-radius:50%;background:var(--tblr-success);flex-shrink:0"></span>Completed</span>
+                        <span class="d-flex align-items-center gap-1"><span style="width:8px;height:8px;border-radius:50%;background:var(--tblr-primary);flex-shrink:0"></span>In Progress</span>
+                      </div>
+                    </div>
+                    <div class="card-body p-0">
+                      <div id="analytics-funnel">
+                        <div class="text-secondary p-3">Loading...</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Progress Map -->
+              <div class="row row-deck row-cards mb-3">
+                <div class="col-12">
+                  <div class="card">
+                    <div class="card-header">
+                      <h3 class="card-title">Progress Map</h3>
+                    </div>
+                    <div class="card-body p-0">
+                      <div id="analytics-matrix">
+                        <div class="text-secondary p-3">Loading...</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </section>
+
+            <!-- ============ AUDIENCE ============ -->
+            <section id="admin-audience" class="admin-section">
+
+              <!-- Member Map -->
+              <div class="row row-deck row-cards mb-3">
+                <div class="col-12">
+                  <div class="card">
+                    <div class="card-header">
+                      <h3 class="card-title">Member Locations</h3>
+                    </div>
+                    <div class="card-body p-0">
+                      <div id="analytics-map" style="height:500px;border-radius:0 0 4px 4px;background:var(--tblr-card-bg)"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Device + Browsers | Countries | Cities -->
+              <div class="row row-deck row-cards mb-3">
+                <div class="col-lg-4">
+                  <div class="row row-deck row-cards g-3">
+                    <div class="col-12">
+                      <div class="card">
+                        <div class="card-header">
+                          <h3 class="card-title">Device Distribution</h3>
+                          <div class="card-options d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-secondary active analytics-period-pill" data-panel="analytics-device" data-period="30d" style="border-radius:1rem;text-transform:uppercase;font-size:0.65rem;letter-spacing:0.04em;padding-left:0.6rem;padding-right:0.6rem">30 days</button>
+                            <button class="btn btn-sm btn-outline-secondary analytics-period-pill" data-panel="analytics-device" data-period="all" style="border-radius:1rem;text-transform:uppercase;font-size:0.65rem;letter-spacing:0.04em;padding-left:0.6rem;padding-right:0.6rem">All time</button>
+                          </div>
+                        </div>
+                        <div class="card-body p-0">
+                          <div id="analytics-device">
+                            <div class="text-secondary p-3">Loading...</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-12">
+                      <div class="card">
+                        <div class="card-header">
+                          <h3 class="card-title">Top Browsers</h3>
+                          <div class="card-options d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-secondary active analytics-period-pill" data-panel="analytics-browsers" data-period="30d" style="border-radius:1rem;text-transform:uppercase;font-size:0.65rem;letter-spacing:0.04em;padding-left:0.6rem;padding-right:0.6rem">30 days</button>
+                            <button class="btn btn-sm btn-outline-secondary analytics-period-pill" data-panel="analytics-browsers" data-period="all" style="border-radius:1rem;text-transform:uppercase;font-size:0.65rem;letter-spacing:0.04em;padding-left:0.6rem;padding-right:0.6rem">All time</button>
+                          </div>
+                        </div>
+                        <div class="card-body p-0">
+                          <div id="analytics-browsers">
+                            <div class="text-secondary p-3">Loading...</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-lg-4">
+                  <div class="card">
+                    <div class="card-header">
+                      <h3 class="card-title">Top Countries</h3>
+                      <div class="card-options d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-secondary analytics-period-pill" data-panel="analytics-geo-countries" data-period="30d" style="border-radius:1rem;text-transform:uppercase;font-size:0.65rem;letter-spacing:0.04em;padding-left:0.6rem;padding-right:0.6rem">30 days</button>
+                        <button class="btn btn-sm btn-outline-secondary active analytics-period-pill" data-panel="analytics-geo-countries" data-period="all" style="border-radius:1rem;text-transform:uppercase;font-size:0.65rem;letter-spacing:0.04em;padding-left:0.6rem;padding-right:0.6rem">All time</button>
+                      </div>
+                    </div>
+                    <div class="card-body p-0">
+                      <div id="analytics-geo-countries">
+                        <div class="text-secondary p-3">Loading...</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-lg-4">
+                  <div class="card">
+                    <div class="card-header">
+                      <h3 class="card-title">Top Cities</h3>
+                      <div class="card-options d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-secondary analytics-period-pill" data-panel="analytics-geo-cities" data-period="30d" style="border-radius:1rem;text-transform:uppercase;font-size:0.65rem;letter-spacing:0.04em;padding-left:0.6rem;padding-right:0.6rem">30 days</button>
+                        <button class="btn btn-sm btn-outline-secondary active analytics-period-pill" data-panel="analytics-geo-cities" data-period="all" style="border-radius:1rem;text-transform:uppercase;font-size:0.65rem;letter-spacing:0.04em;padding-left:0.6rem;padding-right:0.6rem">All time</button>
+                      </div>
+                    </div>
+                    <div class="card-body p-0">
+                      <div id="analytics-geo-cities">
+                        <div class="text-secondary p-3">Loading...</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </section>
+
+            <!-- ============ PROJECTIONS ============ -->
+            <section id="admin-projections" class="admin-section">
+              <div class="row row-deck row-cards">
+                <div class="col-12">
+                  <div class="card">
+                    <div class="card-header"><h3 class="card-title">Target vs Actual</h3></div>
+                    <div class="card-body">
+                      <div id="chart-monthly-signups" style="height:430px;"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <div class="card">
+                    <div class="card-header"><h3 class="card-title">Monthly Breakdown</h3></div>
+                    <div id="projections-table"></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+          </div>
+        </div>
+      </div>
     </div>
   `;
 }

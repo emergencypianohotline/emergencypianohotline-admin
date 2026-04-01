@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,47 +8,25 @@
   <!-- Favicon -->
   <link rel="icon" type="image/x-icon" href="https://members.emergencypianohotline.com/favicon.ico">
 
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Inter font (used by Tabler) -->
+  <style>@import url('https://rsms.me/inter/inter.css');</style>
 
-  <!-- Gopher Font -->
+  <!-- Tabler CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.2.0/dist/css/tabler.min.css">
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+
+  <!-- Overrides -->
+  <link rel="stylesheet" href="/assets/css/admin-overrides.css">
+
   <style>
-    /* Use system fonts as fallback until we host Gopher fonts on admin subdomain */
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
-  </style>
-
-  <!-- Admin CSS -->
-  <link rel="stylesheet" href="/assets/css/admin.css">
-
-  <!-- Base Styles -->
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #000;
-      color: #FFE974;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* Loading Screen */
     .admin-loading-screen {
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: #000;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--tblr-body-bg, #1a1c2e);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -57,238 +35,116 @@
     }
 
     .admin-loading-spinner {
-      width: 50px;
-      height: 50px;
-      border: 3px solid rgba(255, 233, 116, 0.2);
-      border-top-color: #FFE974;
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255,255,255,0.15);
+      border-top-color: var(--tblr-primary);
       border-radius: 50%;
-      animation: spin 1s linear infinite;
+      animation: spin 0.8s linear infinite;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     .admin-loading-text {
       margin-top: 1rem;
-      color: #FFE974;
-      font-family: 'Gopher', sans-serif;
-      font-size: 1.2rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
+      color: var(--tblr-body-color);
+      font-size: 0.875rem;
     }
 
-    /* Error Screen */
-    .admin-error-screen {
+    .admin-login-screen {
       display: none;
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: #000;
-      flex-direction: column;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--tblr-body-bg, #1a1c2e);
+      z-index: 9999;
+    }
+
+    .admin-login-screen.visible {
+      display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 9999;
-      padding: 2rem;
-      text-align: center;
     }
 
-    .admin-error-screen h1 {
-      color: #f87171;
-      font-family: 'Gopher', sans-serif;
-      font-size: 2rem;
-      margin-bottom: 1rem;
-    }
-
-    .admin-error-screen p {
-      color: #FFE974;
-      font-size: 1.1rem;
-      margin-bottom: 2rem;
-      max-width: 500px;
-    }
-
-    .admin-error-screen button {
-      background: #FFE974;
-      color: #000;
-      border: none;
-      padding: 0.75rem 1.5rem;
-      font-family: 'Gopher', sans-serif;
-      font-size: 1rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      cursor: pointer;
-      border-radius: 4px;
-    }
-
-    .admin-error-screen button:hover {
-      background: #ffd93d;
-    }
-
-    /* Login Form */
-    .admin-login-form {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      width: 100%;
-      max-width: 400px;
-      margin: 2rem 0;
-    }
-
-    .admin-login-input {
-      background: rgba(255, 233, 116, 0.1);
-      border: 1px solid rgba(255, 233, 116, 0.3);
-      color: #FFE974;
-      padding: 0.75rem 1rem;
-      font-family: 'Inter', sans-serif;
-      font-size: 1rem;
-      border-radius: 4px;
-    }
-
-    .admin-login-input:focus {
-      outline: none;
-      border-color: #FFE974;
-      background: rgba(255, 233, 116, 0.15);
-    }
-
-    .admin-login-input::placeholder {
-      color: rgba(255, 233, 116, 0.5);
-    }
-
-    .admin-login-button {
-      background: #FFE974;
-      color: #000;
-      border: none;
-      padding: 0.75rem 1.5rem;
-      font-family: 'Gopher', sans-serif;
-      font-size: 1rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      cursor: pointer;
-      border-radius: 4px;
-      transition: background 0.2s;
-    }
-
-    .admin-login-button:hover {
-      background: #ffd93d;
-    }
-
-    .admin-login-button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .admin-login-error {
-      color: #f87171;
-      font-size: 0.9rem;
-      margin-top: 0.5rem;
-    }
-
-    .admin-forgot-password {
-      text-align: center;
-      margin-top: 0.5rem;
-    }
-
-    .admin-forgot-password-link {
-      color: rgba(255, 233, 116, 0.7);
-      text-decoration: none;
-      font-size: 0.9rem;
-      cursor: pointer;
-    }
-
-    .admin-forgot-password-link:hover {
-      color: #FFE974;
-      text-decoration: underline;
-    }
-
-    .admin-success-message {
-      color: #4ade80;
-      font-size: 0.9rem;
-      margin-top: 0.5rem;
-      text-align: center;
-    }
-
-    /* Admin Container */
     #admin-container {
       display: none;
-      width: 100%;
-      height: 100vh;
-      overflow: hidden;
     }
 
     #admin-container.ready {
-      display: block;
+      display: contents;
     }
   </style>
 </head>
 <body>
+
   <!-- Loading Screen -->
   <div class="admin-loading-screen" id="loading-screen">
     <div class="admin-loading-spinner"></div>
     <div class="admin-loading-text">Loading Admin Dashboard</div>
   </div>
 
-  <!-- Error Screen -->
-  <div class="admin-error-screen" id="error-screen">
-    <h1>Admin Login</h1>
-    <p id="error-message">Please log in with your admin credentials to access the dashboard.</p>
-
-    <form class="admin-login-form" id="login-form">
-      <input
-        type="email"
-        id="login-email"
-        class="admin-login-input"
-        placeholder="Email address"
-        required
-        autocomplete="email"
-      >
-      <input
-        type="password"
-        id="login-password"
-        class="admin-login-input"
-        placeholder="Password"
-        required
-        autocomplete="current-password"
-      >
-      <button type="submit" class="admin-login-button" id="login-button">
-        Log In
-      </button>
-      <div id="login-error" class="admin-login-error"></div>
-      <div id="login-success" class="admin-success-message"></div>
-    </form>
-
-    <div class="admin-forgot-password">
-      <a class="admin-forgot-password-link" id="forgot-password-link">Forgot password?</a>
+  <!-- Login Screen -->
+  <div class="admin-login-screen" id="error-screen">
+    <div class="container container-tight py-4">
+      <div class="text-center mb-4">
+        <h2>Emergency Piano Hotline</h2>
+        <p class="text-secondary" id="error-message">Sign in to your admin account</p>
+      </div>
+      <div class="card card-md">
+        <div class="card-body">
+          <form id="login-form" autocomplete="off" novalidate>
+            <div class="mb-3">
+              <label class="form-label">Email address</label>
+              <input type="email" id="login-email" class="form-control" placeholder="admin@example.com" required autocomplete="email">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Password</label>
+              <input type="password" id="login-password" class="form-control" placeholder="Password" required autocomplete="current-password">
+            </div>
+            <div class="form-footer">
+              <button type="submit" class="btn btn-primary w-100" id="login-button">Sign in</button>
+            </div>
+            <div id="login-error" class="text-danger mt-2 small"></div>
+            <div id="login-success" class="text-success mt-2 small"></div>
+          </form>
+        </div>
+      </div>
+      <div class="text-center text-secondary mt-3">
+        <a href="#" class="text-secondary small" id="forgot-password-link">Forgot password?</a>
+      </div>
+      <div class="text-center mt-3">
+        <a href="https://members.emergencypianohotline.com" class="btn btn-ghost-secondary btn-sm">Go to Main Site</a>
+      </div>
     </div>
-
-    <button onclick="window.location.href='https://members.emergencypianohotline.com'">
-      Go to Main Site
-    </button>
   </div>
 
-  <!-- Admin Container (populated by JavaScript) -->
+  <!-- Admin Container -->
   <div id="admin-container"></div>
 
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Leaflet -->
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+  <!-- ApexCharts -->
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.49.0/dist/apexcharts.min.js"></script>
+
+  <!-- Tabler JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.2.0/dist/js/tabler.min.js"></script>
 
   <!-- Admin Dashboard -->
   <script type="module">
     import { loadAdminDashboard, verifyAdminAccess } from './assets/js/features/admin/index.js';
     import { SUPABASE_URL, SUPABASE_ANON_KEY } from './assets/js/config.js';
 
-    // Initialize Supabase client with explicit config
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    // Store client instance globally for admin module to use
     if (!window.HOTLINE) window.HOTLINE = {};
     window.HOTLINE.supabase = supabase;
 
-    // Handle login form submission
+    // Login form
     document.getElementById('login-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
-
       const email = document.getElementById('login-email').value;
       const password = document.getElementById('login-password').value;
       const loginButton = document.getElementById('login-button');
@@ -296,189 +152,118 @@
       const loginSuccess = document.getElementById('login-success');
 
       loginButton.disabled = true;
-      loginButton.textContent = 'Logging in...';
+      loginButton.textContent = 'Signing in...';
       loginError.textContent = '';
       loginSuccess.textContent = '';
 
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-
-        // Reload page to trigger admin verification
         window.location.reload();
-
       } catch (error) {
-        console.error('Login error:', error);
-        loginError.textContent = error.message || 'Login failed. Please try again.';
+        loginError.textContent = error.message || 'Login failed.';
         loginButton.disabled = false;
-        loginButton.textContent = 'Log In';
+        loginButton.textContent = 'Sign in';
       }
     });
 
-    // Handle forgot password
+    // Forgot password
     document.getElementById('forgot-password-link')?.addEventListener('click', async (e) => {
       e.preventDefault();
-
       const email = document.getElementById('login-email').value;
       const loginError = document.getElementById('login-error');
       const loginSuccess = document.getElementById('login-success');
 
-      if (!email) {
-        loginError.textContent = 'Please enter your email address first.';
-        return;
-      }
-
+      if (!email) { loginError.textContent = 'Enter your email first.'; return; }
       loginError.textContent = '';
       loginSuccess.textContent = '';
 
       try {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin,
-        });
-
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
         if (error) throw error;
-
-        loginSuccess.textContent = 'Password reset email sent! Check your inbox.';
+        loginSuccess.textContent = 'Password reset email sent!';
       } catch (error) {
-        console.error('Password reset error:', error);
-        loginError.textContent = error.message || 'Failed to send password reset email.';
+        loginError.textContent = error.message || 'Failed to send reset email.';
       }
     });
 
-    // Check if this is a password recovery callback
+    // Password recovery callback
     async function checkPasswordRecovery() {
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const type = hashParams.get('type');
+      if (hashParams.get('type') !== 'recovery') return false;
 
-      if (type === 'recovery') {
-        // Show password update form
-        const errorScreen = document.getElementById('error-screen');
-        const errorMessage = document.getElementById('error-message');
-        const loginForm = document.getElementById('login-form');
-        const forgotPasswordLink = document.querySelector('.admin-forgot-password');
+      const errorScreen = document.getElementById('error-screen');
+      document.getElementById('error-message').textContent = 'Set your new password';
+      const loginForm = document.getElementById('login-form');
 
-        errorMessage.textContent = 'Set your new password';
-        loginForm.innerHTML = `
-          <input
-            type="password"
-            id="new-password"
-            class="admin-login-input"
-            placeholder="New password"
-            required
-            autocomplete="new-password"
-          >
-          <input
-            type="password"
-            id="confirm-password"
-            class="admin-login-input"
-            placeholder="Confirm password"
-            required
-            autocomplete="new-password"
-          >
-          <button type="submit" class="admin-login-button" id="update-password-button">
-            Update Password
-          </button>
-          <div id="login-error" class="admin-login-error"></div>
-          <div id="login-success" class="admin-success-message"></div>
-        `;
+      loginForm.innerHTML = `
+        <div class="mb-3">
+          <label class="form-label">New password</label>
+          <input type="password" id="new-password" class="form-control" placeholder="New password" required autocomplete="new-password">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Confirm password</label>
+          <input type="password" id="confirm-password" class="form-control" placeholder="Confirm password" required autocomplete="new-password">
+        </div>
+        <div class="form-footer">
+          <button type="submit" class="btn btn-primary w-100" id="update-password-button">Update Password</button>
+        </div>
+        <div id="login-error" class="text-danger mt-2 small"></div>
+        <div id="login-success" class="text-success mt-2 small"></div>
+      `;
 
-        if (forgotPasswordLink) forgotPasswordLink.style.display = 'none';
+      document.getElementById('forgot-password-link').style.display = 'none';
 
-        loginForm.addEventListener('submit', async (e) => {
-          e.preventDefault();
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const newPw = document.getElementById('new-password').value;
+        const confirmPw = document.getElementById('confirm-password').value;
+        const btn = document.getElementById('update-password-button');
+        const err = document.getElementById('login-error');
+        const suc = document.getElementById('login-success');
 
-          const newPassword = document.getElementById('new-password').value;
-          const confirmPassword = document.getElementById('confirm-password').value;
-          const updateButton = document.getElementById('update-password-button');
-          const loginError = document.getElementById('login-error');
-          const loginSuccess = document.getElementById('login-success');
+        if (newPw !== confirmPw) { err.textContent = 'Passwords do not match'; return; }
+        if (newPw.length < 6) { err.textContent = 'Password must be at least 6 characters'; return; }
 
-          if (newPassword !== confirmPassword) {
-            loginError.textContent = 'Passwords do not match';
-            return;
-          }
+        btn.disabled = true; btn.textContent = 'Updating...'; err.textContent = ''; suc.textContent = '';
 
-          if (newPassword.length < 6) {
-            loginError.textContent = 'Password must be at least 6 characters';
-            return;
-          }
+        try {
+          const { error } = await supabase.auth.updateUser({ password: newPw });
+          if (error) throw error;
+          suc.textContent = 'Password updated! Redirecting...';
+          window.location.hash = '';
+          setTimeout(() => window.location.reload(), 1500);
+        } catch (error) {
+          err.textContent = error.message || 'Failed to update password.';
+          btn.disabled = false; btn.textContent = 'Update Password';
+        }
+      });
 
-          updateButton.disabled = true;
-          updateButton.textContent = 'Updating...';
-          loginError.textContent = '';
-          loginSuccess.textContent = '';
-
-          try {
-            const { error } = await supabase.auth.updateUser({ password: newPassword });
-
-            if (error) throw error;
-
-            loginSuccess.textContent = 'Password updated! Redirecting...';
-
-            // Clear hash and redirect to admin
-            window.location.hash = '';
-            setTimeout(() => window.location.reload(), 1500);
-
-          } catch (error) {
-            console.error('Password update error:', error);
-            loginError.textContent = error.message || 'Failed to update password.';
-            updateButton.disabled = false;
-            updateButton.textContent = 'Update Password';
-          }
-        });
-
-        document.getElementById('loading-screen').style.display = 'none';
-        errorScreen.style.display = 'flex';
-        return true;
-      }
-
-      return false;
+      document.getElementById('loading-screen').style.display = 'none';
+      errorScreen.classList.add('visible');
+      return true;
     }
 
     // Initialize
     (async () => {
       try {
-        console.log('🔐 Verifying admin access...');
+        if (await checkPasswordRecovery()) return;
 
-        // Check if this is a password recovery callback
-        if (await checkPasswordRecovery()) {
-          return;
-        }
-
-        // Verify admin access
         const isAdmin = await verifyAdminAccess();
-
         if (!isAdmin) {
-          // Not admin - show login screen
           document.getElementById('loading-screen').style.display = 'none';
-          document.getElementById('error-screen').style.display = 'flex';
+          document.getElementById('error-screen').classList.add('visible');
           return;
         }
 
-        console.log('✅ Admin verified, loading dashboard...');
-
-        // Load admin dashboard
-        await loadAdminDashboard('overview');
-
-        // Hide loading, show admin
+        await loadAdminDashboard();
         document.getElementById('loading-screen').style.display = 'none';
         document.getElementById('admin-container').classList.add('ready');
-
-        console.log('✅ Admin dashboard loaded');
-
       } catch (error) {
-        console.error('❌ Admin initialization failed:', error);
-
-        // Show error screen
+        console.error('Admin init failed:', error);
         document.getElementById('loading-screen').style.display = 'none';
-        const errorScreen = document.getElementById('error-screen');
-        errorScreen.style.display = 'flex';
-        document.getElementById('error-message').textContent =
-          error.message || 'Failed to load admin dashboard. Please try again.';
+        document.getElementById('error-screen').classList.add('visible');
+        document.getElementById('error-message').textContent = error.message || 'Failed to load dashboard.';
       }
     })();
   </script>

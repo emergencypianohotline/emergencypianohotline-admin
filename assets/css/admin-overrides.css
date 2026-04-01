@@ -1,0 +1,276 @@
+/* Admin Overrides - minimal tweaks on top of Tabler */
+
+/* Berlin Type font */
+@font-face {
+  font-family: 'Berlin Type';
+  src: url('../fonts/BerlinTypeWeb-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Berlin Type';
+  src: url('../fonts/BerlinTypeWeb-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --tblr-font-sans-serif: 'Berlin Type', sans-serif;
+  font-size: 125%;
+}
+
+.card-title {
+  font-weight: 700;
+}
+
+/* YouTube Studio dark colour scheme */
+[data-bs-theme="dark"] {
+  --tblr-body-bg: #0f0f0f;
+  --tblr-bg-surface: #1e1e1e;
+  --tblr-bg-surface-secondary: #272727;
+  --tblr-bg-surface-tertiary: #0f0f0f;
+  --tblr-card-bg: #1e1e1e;
+  --tblr-border-color: transparent;
+  --tblr-border-color-translucent: rgba(255, 255, 255, 0.06);
+}
+
+[data-bs-theme="dark"] .page {
+  background: #0f0f0f;
+}
+
+/* Top nav link styling */
+.navbar .nav-link {
+  color: rgba(255, 255, 255, 0.55) !important;
+  background: transparent !important;
+}
+
+.navbar .nav-link:hover {
+  color: #fff !important;
+  background: transparent !important;
+}
+
+.navbar .nav-link.active {
+  color: #fff !important;
+  font-weight: 700;
+  background: transparent !important;
+}
+
+[data-bs-theme="dark"] .card {
+  background: #1e1e1e;
+  border-color: transparent;
+}
+
+[data-bs-theme="dark"] .page-header {
+  background: #0f0f0f;
+}
+
+[data-bs-theme="dark"] .dropdown-menu {
+  background: #1e1e1e;
+  border-color: transparent;
+}
+
+[data-bs-theme="dark"] .table {
+  --tblr-table-bg: transparent;
+}
+
+[data-bs-theme="dark"] .table thead th {
+  background: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+[data-bs-theme="dark"] .list-group-item {
+  background: transparent;
+}
+
+/* Sortable table headers */
+th[data-sort] {
+  cursor: pointer;
+  user-select: none;
+}
+
+
+th[data-sort].sort-asc::after {
+  content: ' \2191';
+}
+
+th[data-sort].sort-desc::after {
+  content: ' \2193';
+}
+
+/* Clickable table rows */
+tr.cursor-pointer {
+  cursor: pointer;
+}
+
+tr.cursor-pointer:hover td {
+  background: rgba(var(--tblr-primary-rgb), 0.04);
+}
+
+/* Activity feed scroll */
+.activity-feed-scroll {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* ApexCharts dark theme overrides */
+.apexcharts-tooltip {
+  background: var(--tblr-bg-surface) !important;
+  border-color: var(--tblr-border-color) !important;
+  color: var(--tblr-body-color) !important;
+}
+
+.apexcharts-tooltip .apexcharts-tooltip-title {
+  background: var(--tblr-bg-surface-secondary) !important;
+  border-color: var(--tblr-border-color) !important;
+}
+
+.apexcharts-xaxistooltip,
+.apexcharts-yaxistooltip {
+  background: var(--tblr-bg-surface) !important;
+  border-color: var(--tblr-border-color) !important;
+  color: var(--tblr-body-color) !important;
+}
+
+.apexcharts-legend-text {
+  color: var(--tblr-body-color) !important;
+}
+
+.apexcharts-menu {
+  background: var(--tblr-bg-surface) !important;
+  border-color: var(--tblr-border-color) !important;
+}
+
+/* Prevent chart overflow in cards */
+.card-body .apexcharts-canvas {
+  max-width: 100%;
+}
+
+/* Section visibility */
+.admin-section {
+  display: none;
+}
+
+.admin-section.active {
+  display: block;
+}
+
+/* Needs attention lists */
+.needs-attention-list .list-group-item {
+  cursor: pointer;
+  border: 0;
+  border-bottom: 1px solid var(--tblr-border-color);
+  padding: 0.5rem 0;
+}
+
+.needs-attention-list .list-group-item:hover {
+  background: rgba(var(--tblr-primary-rgb), 0.04);
+}
+
+.needs-attention-list .list-group-item:last-child {
+  border-bottom: 0;
+}
+
+/* Time range buttons */
+.btn-outline-secondary {
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  background: transparent !important;
+}
+
+.btn-outline-secondary:hover {
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  color: #fff !important;
+  background: transparent !important;
+}
+
+.btn-outline-secondary.active {
+  border-color: #fff !important;
+  color: #fff !important;
+  background: transparent !important;
+}
+
+/* Progress bar track */
+[data-bs-theme="dark"] .progress {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Members search input */
+#user-search {
+  background: #1e1e1e;
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+#user-search:focus {
+  background: #1e1e1e;
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+  outline: none;
+  color: #fff;
+}
+
+/* Content accordion — no separator between header and body */
+#content-accordion .card-header {
+  border-bottom: none !important;
+}
+
+/* Content accordion — no line after last table row or before lesson dividers */
+#content-accordion tbody tr:last-child > *,
+#content-accordion tbody tr:has(+ tr > td[colspan="8"]) > * {
+  border-bottom: none !important;
+}
+
+/* Members table — no line after last row */
+#users-table tbody tr:last-child > * {
+  border-bottom: none !important;
+}
+
+/* Progress Map sort labels — match th[data-sort] from Members table */
+.matrix-sort-label {
+  cursor: pointer;
+  user-select: none;
+  color: #fff;
+}
+
+
+.matrix-sort-label.sort-asc::after {
+  content: ' \2191';
+}
+
+.matrix-sort-label.sort-desc::after {
+  content: ' \2193';
+}
+
+/* Compact live counters */
+.live-counter-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.75); }
+}
+
+/* Leaflet map — dark theme overrides */
+.leaflet-bar a {
+  background-color: #1e1e1e;
+  color: #aaa;
+  border-color: #333;
+}
+.leaflet-bar a:hover {
+  background-color: #272727;
+  color: #fff;
+}
+.leaflet-bar {
+  border: none !important;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.6) !important;
+}
+.leaflet-control-attribution {
+  display: none !important;
+}

@@ -1,401 +1,303 @@
 /**
- * @fileoverview Admin Dashboard - Content Stats Section
- * Phase 7: Enhanced with song-level stats, problem alerts, and detailed tutorial metrics
+ * @fileoverview Admin Dashboard - Content Stats (Tabler)
+ *
+ * Tutorials grouped by song in collapsible accordion cards with thumbnails.
  */
 
 import { debug } from '../../config.js';
-import { exportToCSV } from './export.js';
+
 
 let tutorialsData = [];
-let songStatsData = [];
-let problemAlertsData = {};
-let sortColumn = 'completionRate';
-let sortDirection = 'asc';
-
-/**
- * Initialize content stats section
- */
+let totalWatchSecondsData = 0;
+let totalCompletionsData = 0;
+let totalMembersData = 0;
 export function initContentStats() {
-  // Setup song filter
-  const songFilter = document.getElementById('content-filter-song');
-  if (songFilter) {
-    songFilter.addEventListener('change', () => {
-      filterAndRenderTutorials();
-    });
-  }
-
-  // Setup export button
-  const exportBtn = document.getElementById('export-content-btn');
-  if (exportBtn) {
-    exportBtn.addEventListener('click', () => {
-      exportContentCSV();
-    });
-  }
-
-  // Setup table sorting
-  const tableHeaders = document.querySelectorAll('#content-table th[data-sort]');
-  tableHeaders.forEach(th => {
-    th.addEventListener('click', () => {
-      const column = th.dataset.sort;
-      if (sortColumn === column) {
-        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-      } else {
-        sortColumn = column;
-        sortDirection = column === 'completionRate' ? 'asc' : 'desc';
-      }
-      filterAndRenderTutorials();
-      updateSortIndicators();
-    });
-  });
+  // No-op — accordion event listeners are set up in renderAccordion
 }
 
-/**
- * Load content stats data from API
- */
 export async function loadContentStatsData(getAdminApiUrl, getAuthHeaders, forceRefresh = false) {
-  // If we already have data and not forcing refresh, just re-render
   if (tutorialsData.length > 0 && !forceRefresh) {
-    debug.log('📊 Using cached content data');
-    populateSongFilter();
-    filterAndRenderTutorials();
-    renderSongStats();
-    renderProblemAlerts();
+    renderContentPage();
     return;
   }
 
-  const tbody = document.getElementById('content-table-body');
-  const songStatsEl = document.getElementById('content-song-stats');
-
-  if (tbody) {
-    tbody.innerHTML = '<tr><td colspan="8" class="admin-loading">Loading...</td></tr>';
-  }
-  if (songStatsEl) {
-    songStatsEl.innerHTML = '<div class="admin-loading">Loading...</div>';
-  }
+  const accordion = document.getElementById('content-accordion');
+  if (accordion) accordion.innerHTML = '<div class="text-secondary p-3">Loading...</div>';
 
   try {
     const response = await fetch(getAdminApiUrl('tutorials'), {
       method: 'GET',
       headers: getAuthHeaders(),
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const data = await response.json();
     tutorialsData = data.tutorials || [];
-    songStatsData = data.songStats || [];
-    // Alerts are nested under data.alerts
-    const alerts = data.alerts || {};
-    problemAlertsData = {
-      problemTutorials: alerts.problemTutorials || [],
-      highRewatchTutorials: alerts.highRewatchTutorials || [],
-      slowSongs: alerts.slowSongs || [],
-    };
+    totalWatchSecondsData = data.totalWatchSeconds || 0;
+    totalCompletionsData = data.totalCompletions || 0;
+    totalMembersData = data.totalMembers || 0;
 
-    debug.log('📊 Content data received:', {
-      tutorials: tutorialsData.length,
-      songs: songStatsData.length,
-      problemAlerts: problemAlertsData
+    tutorialsData.forEach(t => { if (t.thumbnailUrl) new Image().src = t.thumbnailUrl; });
+
+    renderContentPage();
+  } catch (err) {
+    debug.error('Failed to load tutorials:', err);
+    const accordion = document.getElementById('content-accordion');
+    if (accordion) accordion.innerHTML = '<div class="text-danger p-3">Failed to load</div>';
+  }
+}
+
+function renderContentPage() {
+  renderKPIRow();
+  const accordion = document.getElementById('content-accordion');
+  if (!accordion || accordion.querySelector('.card')) return; // already rendered
+  renderAccordion();
+}
+
+function renderKPIRow() {
+  const el = (id) => document.getElementById(id);
+  const now = new Date();
+  const released = tutorialsData.filter(t => t.releaseDate && new Date(t.releaseDate) <= now);
+  const unreleased = tutorialsData.filter(t => !t.releaseDate || new Date(t.releaseDate) > now);
+
+  const releasedDuration = released.reduce((sum, t) => sum + (t.durationSeconds || 0), 0);
+
+  const totalDuration    = tutorialsData.reduce((sum, t) => sum + (t.durationSeconds || 0), 0);
+  const unreleasedDuration = unreleased.reduce((sum, t) => sum + (t.durationSeconds || 0), 0);
+
+  // Weeks left until final release batch
+  let weeksLeft = '—';
+  let finalRelease = '—';
+  const byDate = new Map();
+  for (const t of unreleased) {
+    if (!t.releaseDate) continue;
+    const d = t.releaseDate.slice(0, 10);
+    byDate.set(d, (byDate.get(d) || 0) + 1);
+  }
+  const batchDates = [...byDate.entries()].filter(([, c]) => c >= 3).map(([d]) => d).sort();
+  const finalDateStr = batchDates.length > 0 ? batchDates[batchDates.length - 1] : null;
+  if (finalDateStr) {
+    finalRelease = formatDate(finalDateStr);
+    const daysLeft = Math.ceil((new Date(finalDateStr) - now) / (1000 * 60 * 60 * 24));
+    weeksLeft = daysLeft > 0 ? Math.floor(daysLeft / 7) : 0;
+  }
+
+  // Avg completion rate across released tutorials that have viewers
+  const withViewers = released.filter(t => t.uniqueViewers > 0);
+  const avgRate = withViewers.length > 0
+    ? Math.round(withViewers.reduce((sum, t) => sum + (t.completionRate || 0), 0) / withViewers.length)
+    : 0;
+
+  const totalViews = tutorialsData.reduce((sum, t) => sum + (t.uniqueViewers || 0), 0);
+
+  if (el('stat-total-tutorials'))      el('stat-total-tutorials').textContent      = tutorialsData.length;
+  if (el('stat-total-duration'))       el('stat-total-duration').textContent       = formatDurationLong(totalDuration);
+  if (el('stat-released-tutorials'))   el('stat-released-tutorials').textContent   = released.length;
+  if (el('stat-released-duration'))    el('stat-released-duration').textContent    = formatDurationLong(releasedDuration);
+  if (el('stat-unreleased-tutorials')) el('stat-unreleased-tutorials').textContent = unreleased.length;
+  if (el('stat-unreleased-duration'))  el('stat-unreleased-duration').textContent  = formatDurationLong(unreleasedDuration);
+  if (el('stat-weeks-left'))           el('stat-weeks-left').textContent           = weeksLeft;
+  if (el('stat-final-release'))        el('stat-final-release').textContent        = finalRelease;
+  if (el('stat-total-views'))          el('stat-total-views').textContent          = totalViews;
+  if (el('stat-completed-tutorials'))  el('stat-completed-tutorials').textContent  = totalCompletionsData;
+  if (el('stat-total-watch-time'))     el('stat-total-watch-time').textContent     = formatDurationLong(totalWatchSecondsData);
+  if (el('stat-avg-completion-rate'))  el('stat-avg-completion-rate').textContent  = `${avgRate}%`;
+}
+
+function renderAccordion() {
+  const container = document.getElementById('content-accordion');
+  if (!container) return;
+
+  // Group tutorials by song, ordered by songNumber
+  const songGroups = new Map();
+  for (const t of tutorialsData) {
+    const song = t.songTitle || 'Unknown';
+    if (!songGroups.has(song)) {
+      songGroups.set(song, { songNumber: t.songNumber || 0, tutorials: [] });
+    }
+    songGroups.get(song).tutorials.push(t);
+  }
+
+  const sorted = [...songGroups.entries()].sort((a, b) => a[1].songNumber - b[1].songNumber);
+
+  if (sorted.length === 0) {
+    container.innerHTML = '<div class="text-secondary p-3">No tutorials found</div>';
+    return;
+  }
+
+  container.innerHTML = sorted.map(([songTitle, group], i) => {
+    const songCollapseId = `song-collapse-${i}`;
+
+    const tutorials = group.tutorials.sort((a, b) => {
+      const lessonDiff = (a.lessonNumber || 0) - (b.lessonNumber || 0);
+      return lessonDiff !== 0 ? lessonDiff : getPartNumber(a.title) - getPartNumber(b.title);
     });
 
-    // Populate song filter
-    populateSongFilter();
-
-    // Render problem alerts
-    renderProblemAlerts();
-
-    // Render song stats
-    renderSongStats();
-
-    // Render tutorials table
-    filterAndRenderTutorials();
-
-  } catch (err) {
-    debug.error('❌ Failed to load content stats:', err);
-    if (tbody) {
-      tbody.innerHTML = '<tr><td colspan="8" class="admin-error">Failed to load tutorials</td></tr>';
-    }
-    if (songStatsEl) {
-      songStatsEl.innerHTML = '<div class="admin-error">Failed to load song stats</div>';
-    }
-  }
-}
-
-/**
- * Populate song filter dropdown
- */
-function populateSongFilter() {
-  const filter = document.getElementById('content-filter-song');
-  if (!filter) return;
-
-  const songs = [...new Set(tutorialsData.map(t => t.songTitle).filter(Boolean))];
-  songs.sort();
-
-  filter.innerHTML = '<option value="">All Songs</option>' +
-    songs.map(song => `<option value="${song}">${song}</option>`).join('');
-}
-
-/**
- * Render problem content alerts
- */
-function renderProblemAlerts() {
-  const container = document.getElementById('problem-content-alerts');
-  if (!container) return;
-
-  const { problemTutorials, highRewatchTutorials, slowSongs } = problemAlertsData;
-
-  let hasAlerts = false;
-
-  // Low completion tutorials
-  const problemEl = document.getElementById('problem-tutorials-alert');
-  const problemCount = document.getElementById('problem-tutorials-count');
-  if (problemEl && problemCount) {
-    if (problemTutorials.length > 0) {
-      problemCount.textContent = problemTutorials.length;
-      problemEl.style.display = 'block';
-      problemEl.title = problemTutorials.map(t => `${t.title} (${t.completionRate}%)`).join('\n');
-      hasAlerts = true;
-    } else {
-      problemEl.style.display = 'none';
-    }
-  }
-
-  // High rewatch tutorials
-  const rewatchEl = document.getElementById('high-rewatch-alert');
-  const rewatchCount = document.getElementById('high-rewatch-count');
-  if (rewatchEl && rewatchCount) {
-    if (highRewatchTutorials.length > 0) {
-      rewatchCount.textContent = highRewatchTutorials.length;
-      rewatchEl.style.display = 'block';
-      rewatchEl.title = highRewatchTutorials.map(t => `${t.title} (${t.rewatchRate}% rewatch)`).join('\n');
-      hasAlerts = true;
-    } else {
-      rewatchEl.style.display = 'none';
-    }
-  }
-
-  // Slow songs
-  const slowEl = document.getElementById('slow-songs-alert');
-  const slowCount = document.getElementById('slow-songs-count');
-  if (slowEl && slowCount) {
-    if (slowSongs.length > 0) {
-      slowCount.textContent = slowSongs.length;
-      slowEl.style.display = 'block';
-      slowEl.title = slowSongs.map(s => `${s.songTitle} (${s.avgDaysToComplete} days avg)`).join('\n');
-      hasAlerts = true;
-    } else {
-      slowEl.style.display = 'none';
-    }
-  }
-
-  container.style.display = hasAlerts ? 'block' : 'none';
-}
-
-/**
- * Render song-level stats
- */
-function renderSongStats() {
-  const container = document.getElementById('content-song-stats');
-  if (!container) return;
-
-  if (!songStatsData || songStatsData.length === 0) {
-    container.innerHTML = '<div class="admin-empty">No song data available</div>';
-    return;
-  }
-
-  container.innerHTML = `
-    <div class="song-stats-grid">
-      ${songStatsData.map(song => {
-        const completionClass = song.completionRate >= 70 ? 'rate-high' :
-          song.completionRate >= 40 ? 'rate-medium' : 'rate-low';
-
-        return `
-          <div class="song-stat-card">
-            <div class="song-stat-header">
-              <span class="song-stat-title">${song.songTitle}</span>
-            </div>
-            <div class="song-stat-metrics">
-              <div class="song-stat-metric">
-                <span class="song-stat-value">${song.usersStarted}</span>
-                <span class="song-stat-label">Started</span>
-              </div>
-              <div class="song-stat-metric">
-                <span class="song-stat-value">${song.usersCompleted}</span>
-                <span class="song-stat-label">Completed</span>
-              </div>
-              <div class="song-stat-metric ${completionClass}">
-                <span class="song-stat-value">${song.completionRate}%</span>
-                <span class="song-stat-label">Rate</span>
-              </div>
-              <div class="song-stat-metric">
-                <span class="song-stat-value">${song.avgDaysToComplete}</span>
-                <span class="song-stat-label">Avg Days</span>
-              </div>
-            </div>
-            ${song.dropOffTutorial ? `
-              <div class="song-stat-dropoff">
-                <span class="dropoff-label">Drop-off point:</span>
-                <span class="dropoff-value">${song.dropOffTutorial}</span>
-              </div>
-            ` : ''}
-          </div>
-        `;
-      }).join('')}
-    </div>
-  `;
-}
-
-/**
- * Filter and render tutorials based on filters/sort
- */
-function filterAndRenderTutorials() {
-  const songFilter = document.getElementById('content-filter-song')?.value || '';
-
-  let filtered = tutorialsData.filter(tutorial => {
-    return !songFilter || tutorial.songTitle === songFilter;
-  });
-
-  // Sort
-  filtered.sort((a, b) => {
-    let aVal = a[sortColumn];
-    let bVal = b[sortColumn];
-
-    // Handle numbers
-    if (typeof aVal === 'number' && typeof bVal === 'number') {
-      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    const lessonGroups = new Map();
+    for (const t of tutorials) {
+      const lesson = t.lessonNumber || 0;
+      if (!lessonGroups.has(lesson)) lessonGroups.set(lesson, []);
+      lessonGroups.get(lesson).push(t);
     }
 
-    // Handle strings
-    aVal = String(aVal || '');
-    bVal = String(bVal || '');
-    return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-  });
+    const lessonCount = lessonGroups.size;
+    const lessonLabel = lessonCount === 1 ? '1 Lesson' : `${lessonCount} Lessons`;
+    const tutLabel = tutorials.length === 1 ? '1 Tutorial' : `${tutorials.length} Tutorials`;
+    const totalSongSecs = tutorials.reduce((sum, t) => sum + (t.durationSeconds || 0), 0);
 
-  renderTutorials(filtered);
-}
-
-/**
- * Render tutorials table with enhanced columns
- */
-function renderTutorials(tutorials) {
-  const tbody = document.getElementById('content-table-body');
-  if (!tbody) return;
-
-  if (tutorials.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="admin-empty">No tutorials found</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = tutorials.map(tutorial => {
-    const rateClass = getRateClass(tutorial.completionRate, tutorial.uniqueViewers);
-    const manualClass = getManualClass(tutorial.manualPercent);
-    const rewatchClass = getRewatchClass(tutorial.rewatchRate);
-    const exitClass = getExitClass(tutorial.medianExitPercent);
+    let songNum = 0;
+    let tbodyRows = '';
+    for (const [lessonNum, lessonTutorials] of lessonGroups) {
+      const lessonTitle = lessonTutorials[0]?.lessonTitle || '';
+      const lessonDividerLabel = lessonTitle ? `LESSON ${lessonNum} \u2014 ${escapeHtml(lessonTitle.toUpperCase())}` : `LESSON ${lessonNum}`;
+      tbodyRows += `
+        <tr style="pointer-events:none">
+          <td colspan="9" style="padding-top:0.75rem;padding-bottom:0.75rem;padding-right:0.75rem;background:rgba(255,255,255,0.04);border-top:none;border-bottom:none">
+            <span class="fw-bold" style="font-size:0.78rem;letter-spacing:0.06em">${lessonDividerLabel}</span>
+          </td>
+        </tr>
+        <tr style="pointer-events:none;border-top:none">
+          <th class="text-center" style="width:50px">#</th>
+          <th>Tutorial</th>
+          <th class="text-center" style="width:110px">Status</th>
+          <th class="text-center" style="width:110px;white-space:nowrap">Release Date</th>
+          <th class="text-center" style="width:100px">Duration</th>
+          <th class="text-center" style="width:80px">Views</th>
+          <th class="text-center" style="width:120px">Completions</th>
+          <th class="text-center" style="width:150px;white-space:nowrap">Rate</th>
+          <th class="text-center" style="width:150px;white-space:nowrap">Coverage</th>
+        </tr>
+      `;
+      for (const t of lessonTutorials) {
+        songNum++;
+        tbodyRows += renderTutorialRow(t, songNum);
+      }
+    }
 
     return `
-      <tr class="admin-table-row clickable" data-tutorial-id="${tutorial.id}" title="Click for detailed analytics">
-        <td class="admin-cell-title">${tutorial.title}</td>
-        <td class="admin-cell-song">${tutorial.songTitle || ''}</td>
-        <td class="admin-cell-number">${tutorial.uniqueViewers}</td>
-        <td class="admin-cell-number">${tutorial.completions}</td>
-        <td class="admin-cell-rate ${rateClass}">${tutorial.completionRate}%</td>
-        <td class="admin-cell-rate ${manualClass}">${tutorial.manualPercent || 0}%</td>
-        <td class="admin-cell-rate ${rewatchClass}">${tutorial.rewatchRate || 0}%</td>
-        <td class="admin-cell-rate ${exitClass}">${tutorial.medianExitPercent || '—'}%</td>
-      </tr>
+      <div class="card mb-3">
+        <div class="card-header cursor-pointer" data-bs-toggle="collapse" data-bs-target="#${songCollapseId}" aria-expanded="true" style="display:flex;align-items:center;gap:1rem">
+          <h3 class="card-title mb-0" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(songTitle)}</h3>
+          <span style="white-space:nowrap;font-size:0.875rem;font-weight:700;color:#fff">${lessonLabel}<span style="margin:0 0.5rem;opacity:0.4">•</span>${tutLabel}<span style="margin:0 0.5rem;opacity:0.4">•</span>${formatDurationLong(totalSongSecs)}</span>
+          <svg xmlns="http://www.w3.org/2000/svg" class="icon content-chevron" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.3s ease;transform:rotate(0deg);flex-shrink:0"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 9l6 6l6 -6"/></svg>
+        </div>
+        <div id="${songCollapseId}" class="collapse show">
+          <div class="table-responsive">
+            <table class="table table-vcenter card-table mb-0">
+              <tbody>${tbodyRows}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     `;
   }).join('');
 
-  // Add click handlers to tutorial rows
-  tbody.querySelectorAll('[data-tutorial-id]').forEach(row => {
-    row.addEventListener('click', () => {
-      const tutorialId = row.dataset.tutorialId;
-      // Navigate to tutorial detail view
-      // This will be called from the parent module
-      window.HOTLINE?.admin?.navigateToView?.('tutorial-detail', { tutorialId });
+  // Suppress transition on initial render
+  container.querySelectorAll('.collapse.show').forEach(collapseEl => {
+    collapseEl.style.transition = 'none';
+    requestAnimationFrame(() => requestAnimationFrame(() => { collapseEl.style.transition = ''; }));
+  });
+
+  // Animate chevrons
+  container.querySelectorAll('.collapse').forEach(collapseEl => {
+    collapseEl.addEventListener('show.bs.collapse', () => {
+      const trigger = container.querySelector(`[data-bs-target="#${collapseEl.id}"]`);
+      trigger?.querySelector('.content-chevron')?.style.setProperty('transform', 'rotate(0deg)');
+    });
+    collapseEl.addEventListener('hide.bs.collapse', () => {
+      const trigger = container.querySelector(`[data-bs-target="#${collapseEl.id}"]`);
+      trigger?.querySelector('.content-chevron')?.style.setProperty('transform', 'rotate(-90deg)');
     });
   });
 }
 
-/**
- * Get CSS class for completion rate
- */
-function getRateClass(rate, viewers) {
-  if (viewers < 5) return '';
-  if (rate < 40) return 'rate-low';
-  if (rate < 70) return 'rate-medium';
-  return 'rate-high';
+function renderTutorialRow(t, songNum) {
+  const now = new Date();
+  const isReleased = t.releaseDate && new Date(t.releaseDate) <= now;
+  const memberPct = totalMembersData > 0 ? Math.min(100, (t.completions / totalMembersData) * 100) : 0;
+  const memberPctRounded = Math.round(memberPct);
+
+  const thumbContent = t.thumbnailUrl
+    ? `<img src="${t.thumbnailUrl}" alt="" style="width:130px;aspect-ratio:16/9;object-fit:cover;border-radius:8px">`
+    : `<div style="width:130px;aspect-ratio:16/9;background:#272727;border-radius:8px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.3);font-size:1rem">\u25B6</div>`;
+
+  const statusBadge = isReleased
+    ? '<span class="badge bg-success-lt">Released</span>'
+    : '<span class="badge bg-orange-lt">Unreleased</span>';
+  const releaseDateCell = t.releaseDate
+    ? `<span class="text-secondary">${formatDate(t.releaseDate)}</span>`
+    : '<span class="text-secondary">—</span>';
+
+  return `
+    <tr>
+      <td class="text-center text-secondary">${songNum}</td>
+      <td style="padding-top:0.75rem;padding-bottom:0.75rem">
+        <div class="d-flex align-items-center gap-3">
+          ${thumbContent}
+          <span>${escapeHtml(t.title)}</span>
+        </div>
+      </td>
+      <td class="text-center" style="white-space:nowrap">${statusBadge}</td>
+      <td class="text-center text-secondary" style="white-space:nowrap">${releaseDateCell}</td>
+      <td class="text-center text-secondary">${formatExactDuration(t.durationSeconds)}</td>
+      <td class="text-center text-secondary">${t.uniqueViewers || '—'}</td>
+      <td class="text-center text-secondary">${t.completions || '—'}</td>
+      <td style="padding-left:1rem;padding-right:1rem">
+        ${(() => { const r = t.uniqueViewers > 0 ? Math.round((t.completions / t.uniqueViewers) * 100) : 0; return `
+        <div class="d-flex align-items-center gap-2">
+          <div class="progress progress-sm flex-grow-1" style="height:6px">
+            <div class="progress-bar bg-primary" style="width:${r}%"></div>
+          </div>
+          <span class="text-secondary" style="font-size:0.75rem;width:2.5rem;text-align:right">${r}%</span>
+        </div>`; })()}
+      </td>
+      <td style="padding-left:1rem;padding-right:1rem">
+        <div class="d-flex align-items-center gap-2">
+          <div class="progress progress-sm flex-grow-1" style="height:6px">
+            <div class="progress-bar bg-primary" style="width:${memberPct}%"></div>
+          </div>
+          <span class="text-secondary" style="font-size:0.75rem;width:2.5rem;text-align:right">${memberPctRounded}%</span>
+        </div>
+      </td>
+    </tr>
+  `;
 }
 
-/**
- * Get CSS class for manual completion percentage
- */
-function getManualClass(percent) {
-  if (percent === undefined || percent === null) return '';
-  // Higher manual % might indicate users skipping - worth watching
-  if (percent > 50) return 'rate-low';
-  if (percent > 30) return 'rate-medium';
-  return '';
+function getPartNumber(title) {
+  const match = title?.match(/^Part\s+(\d+)/i);
+  return match ? parseInt(match[1], 10) : 999;
 }
 
-/**
- * Get CSS class for rewatch rate
- */
-function getRewatchClass(rate) {
-  if (rate === undefined || rate === null) return '';
-  // High rewatch could indicate confusing content
-  if (rate > 30) return 'rate-low';
-  if (rate > 15) return 'rate-medium';
-  return '';
+
+/** Exact duration like 4:54 or 1:02:30 */
+function formatExactDuration(seconds) {
+  if (!seconds) return '-';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-/**
- * Get CSS class for median exit point
- */
-function getExitClass(percent) {
-  if (percent === undefined || percent === null || percent === '—') return '';
-  const p = parseFloat(percent);
-  // Low exit point = users dropping off early
-  if (p < 50) return 'rate-low';
-  if (p < 75) return 'rate-medium';
-  return 'rate-high';
+/** Long duration like "2 hr 39 min" for KPIs and lesson totals */
+function formatDurationLong(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const parts = [];
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0) parts.push(`${m}m`);
+  return parts.join(' ') || '0m';
 }
 
-/**
- * Update sort indicators on table headers
- */
-function updateSortIndicators() {
-  document.querySelectorAll('#content-table th[data-sort]').forEach(th => {
-    th.classList.remove('sort-asc', 'sort-desc');
-    if (th.dataset.sort === sortColumn) {
-      th.classList.add(sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
-    }
-  });
+function formatDate(dateStr) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-/**
- * Export content stats to CSV
- */
-function exportContentCSV() {
-  const headers = [
-    'Tutorial', 'Song', 'Viewers', 'Completions', 'Completion Rate %',
-    'Manual %', 'Auto %', 'Rewatch Rate %', 'Median Exit %', 'Notes Count', 'Notes Density'
-  ];
-  const rows = tutorialsData.map(t => [
-    t.title,
-    t.songTitle || '',
-    t.uniqueViewers,
-    t.completions,
-    t.completionRate,
-    t.manualPercent || 0,
-    t.autoPercent || 0,
-    t.rewatchRate || 0,
-    t.medianExitPercent || '',
-    t.notesCount || 0,
-    t.notesDensity || 0,
-  ]);
-
-  exportToCSV('content-performance', headers, rows);
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
+
